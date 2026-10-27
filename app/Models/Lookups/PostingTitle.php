@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PostingTitle extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $fillable = ['title'];
 

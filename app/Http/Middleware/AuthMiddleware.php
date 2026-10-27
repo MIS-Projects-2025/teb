@@ -191,6 +191,9 @@ class AuthMiddleware
 
     private function unauthorizedResponse(Request $request)
     {
+        if ($request->header('X-Inertia')) {
+            return $this->redirectToLogin($request);
+        }
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => 'Session expired. Please log in again.'], 401);
         }

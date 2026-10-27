@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClassLookup extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $table = 'class';
 

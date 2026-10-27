@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PositionLevel extends Model
 {
 
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $table = 'position_level';
 

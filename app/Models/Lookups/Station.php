@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Station extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $fillable = ['station_name'];
 

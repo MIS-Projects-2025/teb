@@ -6,8 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class EmployeeStation extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
     protected $table = 'employee_station';
     protected $fillable = ['employid', 'station_id'];
     public $timestamps = false;
+
+    public function station()
+    {
+        return $this->belongsTo(\App\Models\Lookups\Station::class, 'station_id');
+    }
 }

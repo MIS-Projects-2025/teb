@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $table = 'department';
 

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Status extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
     protected $table = 'status';
 

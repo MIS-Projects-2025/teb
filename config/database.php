@@ -102,6 +102,31 @@ return [
             ]) : [],
         ],
 
+        'qdn_db' => [
+            'driver' => 'mysql',
+            'url' => env('QDB_URL'),
+            'host' => env('QDB_HOST', '127.0.0.1'),
+            'port' => env('QDB_PORT', '6446'),
+            'database' => env('QDB_DATABASE'),
+            'username' => env('QDB_USERNAME'),
+            'password' => env('QDB_PASSWORD'),
+            'unix_socket' => env('QDB_SOCKET'),
+            'charset' => env('QDB_CHARSET', 'utf8mb4'),
+            'collation' => env('QDB_COLLATION', 'utf8mb4_unicode_ci'),
+        ],
+
+        'email' => [
+            'driver' => 'mysql',
+            'url' => env('EDB_URL'),
+            'host' => env('EDB_HOST', '127.0.0.1'),
+            'port' => env('EDB_PORT', '3306'),
+            'database' => env('EDB_DATABASE'),
+            'username' => env('EDB_USERNAME'),
+            'password' => env('EDB_PASSWORD'),
+            'unix_socket' => env('EDB_SOCKET'),
+            'charset' => env('EDB_CHARSET', 'utf8mb4'),
+            'collation' => env('EDB_COLLATION', 'utf8mb4_unicode_ci'),
+        ],
         // 'mariadb' => [
         //     'driver' => 'mariadb',
         //     'url' => env('DB_URL'),

@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Team extends Model
 {
-    protected $connection = 'recruitment_new';
+    protected $connection = 'masterlist';
 
-    protected $table = 'teams';
+    protected $table = 'team';
 
     protected $fillable = ['team_name'];
 
