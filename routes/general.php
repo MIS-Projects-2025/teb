@@ -28,7 +28,7 @@ Route::prefix($app_name)->middleware(AuthMiddleware::class)->group(function () {
     Route::patch("/change-admin-role", [AdminController::class, 'changeAdminRole'])->name('changeAdminRole');
   });
 
-  // TEB Portal: the TEB dashboard is the home page (name 'dashboard') plus all teb.* routes.
+  // TRB Portal: the TRB dashboard is the home page (name 'dashboard') plus all teb.* routes.
   require __DIR__ . '/teb.php';
 
   Route::get("/profile", [ProfileController::class, 'index'])->name('profile.index');

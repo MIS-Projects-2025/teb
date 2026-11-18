@@ -3,8 +3,8 @@
 @section('content')
 <div style="max-width:380px;margin:60px auto">
   <div class="card">
-    <h1 style="margin-bottom:4px">Telford Engineering Board</h1>
-    <p class="muted" style="margin-top:0">TEB Portal · log in with your masterlist account</p>
+    <h1 style="margin-bottom:4px">Technical Review Board</h1>
+    <p class="muted" style="margin-top:0">TRB Portal · log in with your masterlist account</p>
     <form method="post" action="{{ route('teb.login.attempt') }}" class="grid">
       @csrf
       <div><label for="username">Username</label><input type="text" id="username" name="username" value="{{ old('username') }}" required autofocus></div>

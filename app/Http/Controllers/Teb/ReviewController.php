@@ -16,22 +16,34 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
-// "For Review (Process Engineering)" — TEB Admin only (slide 3).
+// "For Review (Process Engineering)" — TRB Admin only (slide 3).
 class ReviewController extends TebController
 {
+    // Every project still in the process (not Project Closed or Closed (Do not proceed)).
     const LIST_STATUSES = [
         TebProject::STATUS_SUBMITTED,
         TebProject::STATUS_OPEN,
         TebProject::STATUS_HOLD,
         TebProject::STATUS_ONGOING,
+        TebProject::STATUS_REVISE,
         TebProject::STATUS_PENDING_TEB_NUMBER,
         TebProject::STATUS_REVIEWED,
+        TebProject::STATUS_PLAN_FOR_APPROVAL,
+        TebProject::STATUS_PLAN_RETURNED,
+        TebProject::STATUS_TRIAL_AUTHORIZED,
         TebProject::STATUS_FOR_APPROVAL,
+        TebProject::STATUS_RETURNED,
+        TebProject::STATUS_APPROVED,
+        TebProject::STATUS_ADI_REVIEW,
+        TebProject::STATUS_CUSTOMER_HOLD,
+        TebProject::STATUS_DOC_RELEASE,
+        TebProject::STATUS_READINESS_GAPS,
+        TebProject::STATUS_IMPLEMENTATION,
+        TebProject::STATUS_EFFECTIVENESS,
+        TebProject::STATUS_CONTAINMENT,
     ];
 
-    public function __construct(protected TebWorkflow $workflow)
-    {
-    }
+    public function __construct(protected TebWorkflow $workflow) {}
 
     public function index(Request $request)
     {
@@ -42,7 +54,7 @@ class ReviewController extends TebController
             ->orderBy('created_at')
             ->paginate(25)
             ->withQueryString()
-            ->through(fn ($p) => TebPresenter::row($p));
+            ->through(fn($p) => TebPresenter::row($p));
 
         return $this->render('Review/Index', [
             'projects' => $projects,
@@ -57,7 +69,7 @@ class ReviewController extends TebController
 
         return $this->render('Review/Schedule', [
             'p'           => TebPresenter::detail($project->load('affectedAreas', 'attachments', 'reviews')),
-            'emails'      => rescue(fn () => EmailDirectory::options(), [], report: true),
+            'emails'      => rescue(fn() => EmailDirectory::options(), [], report: true),
             'emailSource' => "{$cfg['connection']}: {$cfg['table']}",
         ]);
     }
@@ -73,12 +85,14 @@ class ReviewController extends TebController
             'notes'            => ['nullable', 'string', 'max:5000'],
         ]);
 
+        abort_unless(in_array($project->status, TebProject::PRE_FEASIBILITY_STATUSES, true), 403, 'Reviews are scheduled before the feasibility decision.');
+
         $user   = TebUser::required();
         $review = $project->reviews()->create($data + ['scheduled_by' => $user->id]);
         [$sent, $total, $mailError] = $this->sendInvites($project, $review);
 
         if ($project->status === TebProject::STATUS_SUBMITTED) {
-            $this->workflow->changeStatus($project, TebProject::STATUS_OPEN, $user, 'Review scheduled for '.$review->review_at->format('m/d/Y H:i'));
+            $this->workflow->changeStatus($project, TebProject::STATUS_OPEN, $user, 'Review scheduled for ' . $review->review_at->format('m/d/Y H:i'));
         }
 
         return $this->backWithMailResult($project, "Review scheduled. {$sent} of {$total} calendar invite(s) sent.", $mailError);
@@ -98,14 +112,14 @@ class ReviewController extends TebController
     protected function sendInvites(TebProject $project, TebReview $review): array
     {
         // Reviews saved before reviewees were email addresses hold employee IDs; look those up in the masterlist.
-        [$emails, $ids] = collect($review->reviewees ?? [])->partition(fn ($v) => str_contains((string) $v, '@'));
+        [$emails, $ids] = collect($review->reviewees ?? [])->partition(fn($v) => str_contains((string) $v, '@'));
         if ($ids->isNotEmpty()) {
             $emails = $emails->merge(MasterEmployee::whereIn('employid', $ids->all())->pluck('email'));
         }
         if ($ownerEmail = $project->owner?->email) {
             $emails->push($ownerEmail);
         }
-        $emails = $emails->map(fn ($e) => mb_strtolower(trim((string) $e)))->filter()->unique()->values();
+        $emails = $emails->map(fn($e) => mb_strtolower(trim((string) $e)))->filter()->unique()->values();
 
         $sent = 0;
         $mailError = null;
@@ -116,6 +130,11 @@ class ReviewController extends TebController
             } catch (\Throwable $e) {
                 report($e);
                 $mailError ??= $e->getMessage();
+
+                // Office 365 has blocked the sender; more attempts only extend the block.
+                if (str_contains($e->getMessage(), '5.2.254') || str_contains($e->getMessage(), 'throttled')) {
+                    break;
+                }
             }
         }
         $review->update(['invites_sent' => $review->invites_sent + $sent]);
@@ -128,7 +147,7 @@ class ReviewController extends TebController
         $redirect = redirect()->route('teb.projects.show', $project)->with('success', $message);
 
         return $mailError
-            ? $redirect->with('error', 'Some invites were not sent. Mail error: '.str($mailError)->limit(300))
+            ? $redirect->with('error', 'Some invites were not sent. Mail error: ' . str($mailError)->limit(300))
             : $redirect;
     }
 
@@ -138,7 +157,7 @@ class ReviewController extends TebController
 
         return response(IcsBuilder::forReview($review), 200, [
             'Content-Type'        => 'text/calendar; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="teb-review-'.$review->id.'.ics"',
+            'Content-Disposition' => 'attachment; filename="teb-review-' . $review->id . '.ics"',
         ]);
     }
 
@@ -147,17 +166,19 @@ class ReviewController extends TebController
         $data = $request->validate([
             'status'  => ['required', Rule::in(TebProject::REVIEW_STATUSES)],
             'remarks' => ['nullable', 'string', 'max:2000'],
+            'assessment'   => ['array'],
+            'assessment.*' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $this->workflow->updateReviewStatus($project, $data['status'], TebUser::required(), $data['remarks'] ?? null);
+        $this->workflow->updateReviewStatus($project, $data['status'], TebUser::required(), $data['remarks'] ?? null, $data['assessment'] ?? []);
 
-        return redirect()->route('teb.projects.show', $project)->with('success', 'Status updated to '.$project->status_label.'.');
+        return redirect()->route('teb.projects.show', $project)->with('success', 'Status updated to ' . $project->status_label . '.');
     }
 
     public function assignNumber(Request $request, TebProject $project)
     {
         $this->workflow->assignTebNo($project, TebUser::required());
 
-        return redirect()->route('teb.projects.show', $project)->with('success', "TEB No. {$project->teb_no} assigned.");
+        return redirect()->route('teb.projects.show', $project)->with('success', "TRB No. {$project->teb_no} assigned.");
     }
 }

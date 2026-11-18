@@ -3,11 +3,13 @@
 // group in routes/general.php. That group already applies Authify, so it is not repeated here.
 
 use App\Http\Controllers\Teb\ApprovalController;
+use App\Http\Controllers\Teb\BmpController;
 use App\Http\Controllers\Teb\DashboardController;
 use App\Http\Controllers\Teb\FourMcnController;
 use App\Http\Controllers\Teb\ProjectController;
 use App\Http\Controllers\Teb\ReviewController;
 use App\Http\Controllers\Teb\SettingsController;
+use App\Http\Controllers\Teb\StageController;
 use App\Http\Middleware\AuthMiddleware;
 use App\Http\Middleware\EnsureTebAdmin;
 use Illuminate\Support\Facades\Route;
@@ -20,7 +22,7 @@ if (! in_array(AuthMiddleware::class, (array) (end($tebGroup)['middleware'] ?? [
     return;
 }
 
-// TEB dashboard is the app home page: /{APP_NAME}
+// TRB dashboard is the app home page: /{APP_NAME}
 Route::get('/', DashboardController::class)->name('dashboard');
 
 Route::name('teb.')->group(function () {
@@ -34,6 +36,8 @@ Route::name('teb.')->group(function () {
     Route::put('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::get('projects/{project}/complete', [ProjectController::class, 'completeForm'])->name('projects.complete');
     Route::post('projects/{project}/complete', [ProjectController::class, 'complete'])->name('projects.complete.store');
+    Route::post('projects/{project}/plan', [ProjectController::class, 'submitPlan'])->name('projects.plan');
+    Route::post('projects/{project}/stage', StageController::class)->name('projects.stage');
     Route::get('projects/{project}/form', [ProjectController::class, 'form'])->name('projects.form');
     Route::post('projects/{project}/attachments', [ProjectController::class, 'upload'])->name('projects.upload');
     Route::get('projects/{project}/attachments/{attachment}', [ProjectController::class, 'download'])->name('projects.download');
@@ -48,7 +52,7 @@ Route::name('teb.')->group(function () {
     Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     Route::post('approvals/{approval}', [ApprovalController::class, 'act'])->name('approvals.act');
 
-    // TEB Admin = Process Engineering (config teb.admin_departments)
+    // TRB Admin = Process Engineering (config teb.admin_departments)
     Route::middleware(EnsureTebAdmin::class)->group(function () {
         Route::get('review', [ReviewController::class, 'index'])->name('review.index');
         Route::get('projects/{project}/schedule', [ReviewController::class, 'scheduleForm'])->name('review.schedule');
@@ -58,6 +62,9 @@ Route::name('teb.')->group(function () {
         Route::post('projects/{project}/teb-no', [ReviewController::class, 'assignNumber'])->name('review.assign');
 
         Route::get('settings', [SettingsController::class, 'index'])->name('settings');
-        // Route::post('settings/approvers', [SettingsController::class, 'saveApprover'])->name('settings.approver');
+        // BMP maintenance: categories per TQRDC driver and their classification.
+        Route::post('settings/bmp', [BmpController::class, 'store'])->name('settings.bmp.store');
+        Route::put('settings/bmp/{category}', [BmpController::class, 'update'])->name('settings.bmp.update');
+        Route::delete('settings/bmp/{category}', [BmpController::class, 'destroy'])->name('settings.bmp.destroy');
     });
 });

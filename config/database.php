@@ -102,7 +102,7 @@ return [
             ]) : [],
         ],
 
-        'qdn_db' => [
+        'qdn_new_db' => [
             'driver' => 'mysql',
             'url' => env('QDB_URL'),
             'host' => env('QDB_HOST', '127.0.0.1'),

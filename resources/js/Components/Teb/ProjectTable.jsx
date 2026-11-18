@@ -14,14 +14,14 @@ export default function ProjectTable({ projects, mode }) {
                 <table>
                     <thead>
                         <tr>
-                            <th>TEB No</th><th>Date Created</th><th>TEB Change Title</th><th>Customer</th><th>Project Description</th>
+                            <th>TRB No</th><th>Date Created</th><th>TRB Change Title</th><th>Customer</th><th>Project Description</th>
                             <th>Project Owner</th><th>Classification / Type</th><th>Affected Areas</th><th>Status</th>
                             <th className="teb-noprint">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.length === 0 && (
-                            <tr><td colSpan={10} className="teb-muted" style={{ textAlign: 'center', padding: 28 }}>No TEB entries found.</td></tr>
+                            <tr><td colSpan={10} className="teb-muted" style={{ textAlign: 'center', padding: 28 }}>No TRB entries found.</td></tr>
                         )}
                         {rows.map((r) => (
                             <tr key={r.id}>
@@ -49,7 +49,14 @@ export default function ProjectTable({ projects, mode }) {
                                                 <Link className="teb-btn sm ghost" href={`${tebUrl.show(r.id)}#update-status`}>Status</Link>
                                             </>
                                         )}
-                                        {mode === 'approval' && <Link className="teb-btn sm" href={`${tebUrl.show(r.id)}#approval`}>Approve</Link>}
+                                        {mode === 'approval' && r.my_approval?.can_sign && (
+                                            <Link className="teb-btn sm" href={`${tebUrl.show(r.id)}#approval`}>Approve</Link>
+                                        )}
+                                        {mode === 'approval' && r.my_approval && !r.my_approval.can_sign && (
+                                            <div className="teb-small teb-muted" style={{ whiteSpace: 'normal', maxWidth: 160 }}>
+                                                You sign as {r.my_approval.label} after: {r.my_approval.waiting_on.join(', ')}
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

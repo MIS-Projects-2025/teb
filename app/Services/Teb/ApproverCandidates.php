@@ -16,7 +16,7 @@ class ApproverCandidates
     // Each entry: ['id' => employid, 'name' => 'Last, First', 'job_level' => name].
     public static function byDepartment(): array
     {
-        return once(fn() => static::load());
+        return once(fn () => static::load());
     }
 
     // Employee ids who may sign this department + level.
@@ -45,6 +45,66 @@ class ApproverCandidates
         return $pairs;
     }
 
+    // Company-wide signers for Major changes: [key => [['id','name','job_level'], ...]] (config teb.executive_approvals).
+    // Executive position level (config teb.executive_position_level_ids, id 35) first; job level then picks the box.
+    public static function executives(): array
+    {
+        return once(fn () => static::loadExecutives());
+    }
+
+    public static function eligibleExecutive(string $key): array
+    {
+        return array_column(static::executives()[$key] ?? [], 'id');
+    }
+
+    protected static function loadExecutives(): array
+    {
+        $roles = config('teb.executive_approvals', []);
+        $out = array_fill_keys(array_keys($roles), []);
+        if (! $roles) {
+            return $out;
+        }
+
+        $rows = DB::connection('masterlist')->table('employee_details as e')
+            ->leftJoin('employee_job_level as ejl', 'ejl.employid', '=', 'e.employid')
+            ->leftJoin('job_level as jl', 'jl.id', '=', 'ejl.job_level_id')
+            ->leftJoin('employee_position_level as epl', 'epl.employid', '=', 'e.employid')
+            ->leftJoin('position_level as pl', 'pl.id', '=', 'epl.position_level_id')
+            ->where('e.accstatus', 1)
+            ->orderBy('e.lastname')->orderBy('e.firstname')
+            ->get(['e.employid', 'e.firstname', 'e.lastname', 'ejl.job_level_id', 'jl.emp_job_level_name', 'epl.position_level_id', 'pl.position_level_name']);
+
+        // One entry per employee: an employee with several job / position rows comes back once per combination.
+        $people = [];
+        foreach ($rows as $r) {
+            $p = &$people[(string) $r->employid];
+            $p['name'] ??= trim("{$r->lastname}, {$r->firstname}", ', ');
+            $p['job_level_ids'][] = $r->job_level_id === null ? null : (int) $r->job_level_id;
+            $p['position_level_ids'][] = $r->position_level_id === null ? null : (int) $r->position_level_id;
+            $p['names'][] = mb_strtolower(trim((string) $r->emp_job_level_name));
+            $p['names'][] = mb_strtolower(trim((string) $r->position_level_name));
+            unset($p);
+        }
+
+        // Executive position level (id 35): only these employees may sign as Operation Director or President.
+        $executiveIds = config('teb.executive_position_level_ids', []);
+        foreach ($people as $id => $p) {
+            if ($executiveIds && ! array_intersect($p['position_level_ids'], $executiveIds)) {
+                continue;
+            }
+            $names = array_filter($p['names']);
+            foreach ($roles as $key => $role) {
+                $byId = (bool) array_intersect(array_filter($p['job_level_ids'], 'is_int'), $role['job_level_ids'] ?? []);
+                $byName = (bool) array_intersect($names, array_map('mb_strtolower', $role['names'] ?? []));
+                if ($byId || $byName) {
+                    $out[$key][] = ['id' => (string) $id, 'name' => $p['name'], 'job_level' => $role['label']];
+                }
+            }
+        }
+
+        return $out;
+    }
+
     protected static function load(): array
     {
         $rows = DB::connection('masterlist')->table('employee_department as ed')
@@ -69,7 +129,7 @@ class ApproverCandidates
             $dept = (int) $r->department_id;
             // An employee with several job/position rows appears once per row; merge their labels.
             if (isset($out[$dept]['all'][$person['id']])) {
-                $merged = $out[$dept]['all'][$person['id']]['job_level'] . ' · ' . $person['job_level'];
+                $merged = $out[$dept]['all'][$person['id']]['job_level'].' · '.$person['job_level'];
                 $person['job_level'] = implode(' · ', array_unique(array_filter(explode(' · ', $merged))));
             }
             $out[$dept]['all'][$person['id']] = $person;
@@ -96,10 +156,11 @@ class ApproverCandidates
             }
         }
 
-        return array_map(fn($d) => array_map('array_values', $d), static::shareAcross($out));
+        return array_map(fn ($d) => array_map('array_values', $d), static::shareAcross($out));
     }
 
-    // config teb.approval_shared_departments: each department in a group gets the signers of the whole group.
+    // config teb.approval_shared_departments: each department in a group gets the whole group's signers
+    // for the shared levels only (config teb.approval_shared_levels, default Manager).
     protected static function shareAcross(array $out): array
     {
         $groups = config('teb.approval_shared_departments', []);
@@ -108,10 +169,10 @@ class ApproverCandidates
         }
 
         $ids = Department::query()->get(['id', 'dep_name'])
-            ->mapToGroups(fn($d) => [mb_strtolower(trim($d->dep_name)) => (int) $d->id]);
+            ->mapToGroups(fn ($d) => [mb_strtolower(trim($d->dep_name)) => (int) $d->id]);
 
         foreach ($groups as $names) {
-            $deptIds = collect($names)->flatMap(fn($n) => $ids[mb_strtolower($n)] ?? [])->unique()->all();
+            $deptIds = collect($names)->flatMap(fn ($n) => $ids[mb_strtolower($n)] ?? [])->unique()->all();
             $merged = [];
             foreach ($deptIds as $id) {
                 foreach (array_intersect_key($out[$id] ?? [], array_flip(config('teb.approval_shared_levels', ['manager']))) as $level => $people) {

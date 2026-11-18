@@ -1,9 +1,9 @@
 export default function Details({ p }) {
     const rows = [
-        ['TEB No', p.display_no],
-        ['TEB Change Title', p.title],
+        ['TRB No', p.display_no],
+        ['TRB Change Title', p.title],
         ['Category', p.category_label],
-        ['Customer', p.customer_name || '—'],
+        ['Customer(s)', p.customer_name || '—'],
         ['Change Classification', p.classification_label],
         ['Type of Change', p.types_of_change_label],
         ['Date Created', p.created_at],

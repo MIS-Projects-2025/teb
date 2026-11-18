@@ -1,13 +1,13 @@
 @extends('teb.layout')
-@section('title', 'Complete TEB Form')
+@section('title', 'Complete TRB Form')
 @section('content')
-<h1>Complete TEB Form · {{ $p->teb_no }}</h1>
-<p class="muted">Upload the TEB Report and confirm completion. The portal then generates the TEB form with Completed status and routes it for approval.</p>
+<h1>Complete TRB Form · {{ $p->teb_no }}</h1>
+<p class="muted">Upload the TRB Report and confirm completion. The portal then generates the TRB form with Completed status and routes it for approval.</p>
 <form method="post" enctype="multipart/form-data" action="{{ route('teb.projects.complete.store', $p) }}">
   @csrf
   <div class="card grid" style="max-width:720px">
     <div>
-      <label for="teb_report">TEB Report</label>
+      <label for="teb_report">TRB Report</label>
       <input type="file" id="teb_report" name="teb_report">
       @if($p->attachmentsOf('teb_report')->isNotEmpty())<div class="small muted">On file: {{ $p->attachmentsOf('teb_report')->pluck('original_name')->implode(', ') }}</div>@endif
     </div>

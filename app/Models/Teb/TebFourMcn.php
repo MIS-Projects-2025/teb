@@ -3,8 +3,10 @@
 
 namespace App\Models\Teb;
 
-// 4M Change Application/Notification to ADGT (CS-027), generated after approval when the TEB needs one.
+// 4M Change Application/Notification to ADGT (CS-027), generated after approval when the TRB needs one.
 // before_change = Current Status, after_change = Change Description, reason = Justification.
+// Prefilled from the charter: before_change = Problem / Opportunity Statement, after_change = Project Scope
+// (TebProject::fourMcnBeforeChange / fourMcnAfterChange).
 class TebFourMcn extends TebModel
 {
     protected $table = 'teb_four_mcns';

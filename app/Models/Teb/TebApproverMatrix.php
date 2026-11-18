@@ -6,7 +6,7 @@ namespace App\Models\Teb;
 use App\Models\Lookups\Department;
 use App\Models\Masterlist\Employee;
 
-// Who signs for a department at each level. Maintained by the TEB Admin.
+// Who signs for a department at each level. Maintained by the TRB Admin.
 class TebApproverMatrix extends TebModel
 {
     protected $table = 'teb_approver_matrix';

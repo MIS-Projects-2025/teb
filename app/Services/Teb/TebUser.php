@@ -3,9 +3,9 @@
 
 namespace App\Services\Teb;
 
-// The logged-in employee as the TEB portal sees them (slide 2 "Project Owner").
+// The logged-in employee as the TRB portal sees them (slide 2 "Project Owner").
 // AuthMiddleware fills session('emp_data'). Anyone signed in can register a project;
-// only Process Engineering (config teb.admin_departments) is TEB Admin.
+// only Process Engineering (config teb.admin_departments) is TRB Admin.
 class TebUser
 {
     public static function current(): ?TebActor

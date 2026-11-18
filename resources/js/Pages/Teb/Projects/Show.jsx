@@ -3,26 +3,24 @@ import { useState } from 'react';
 import TebLayout from '../../../Layouts/TebLayout';
 import StatusChip from '../../../Components/Teb/StatusChip';
 import FormDetails from '../../../Components/Teb/FormDetails';
-import ApprovalSection from '../../../Components/Teb/ApprovalSection';
+import { ApprovalRounds } from '../../../Components/Teb/ApprovalSection';
+import NextStep from '../../../Components/Teb/NextStep';
 import { useTebUrl } from '../../../Components/Teb/urls';
 
-const LOCKED = ['for_approval', 'approved'];
+// TRB process: A. Initiate & Plan, B. Validate & Approve, C. Implement & Close.
+const PHASES = [
+    ['A. Initiate & Plan', [[1, 'Project Initiation'], [2, 'Registration & Review'], [3, 'Feasibility & Change Assessment'], [4, 'Development & Qualification Planning']]],
+    ['B. Validate & Approve', [[5, 'Trial & Validation'], [6, 'Results Review & TSPI Approval']]],
+    ['C. Implement & Close', [[7, 'ADI Review & 4MCN'], [8, 'Document Release & Readiness'], [9, 'Controlled Implementation'], [10, 'Effectiveness & Closure']]],
+];
 
-export default function Show({ p, isOwner, myTurn, nextNo }) {
+export default function Show({ p, isOwner, myTurn, myWait, nextNo, stage }) {
     const tebUrl = useTebUrl();
     const { isAdmin, options } = usePage().props.teb;
 
-    const steps = [
-        ['Registered', true],
-        ['Under review', p.status !== 'submitted_for_review'],
-        ['Reviewed', ['pending_teb_number', 'reviewed', 'for_approval', 'returned', 'approved'].includes(p.status)],
-        ['TEB No. assigned', !!p.teb_no],
-        ['TEB form completed', !!p.completed_at && p.status !== 'returned'],
-        ['Approved', p.status === 'approved'],
-        ...(p.requires_4mcn ? [['4MCN generated', !!p.four_mcn]] : []),
-    ];
-    const now = steps.find(([, done]) => !done)?.[0];
-    const adminCanAct = isAdmin && !LOCKED.includes(p.status);
+    const dropped = p.status === 'dropped';
+    const ended = dropped || p.status === 'closed';
+    const adminCanAct = isAdmin && options.preFeasibility.includes(p.status);
 
     return (
         <TebLayout title={`${p.display_no} · ${p.title}`}>
@@ -37,11 +35,27 @@ export default function Show({ p, isOwner, myTurn, nextNo }) {
                 </div>
             </div>
 
-            <div className="teb-flow">
-                {steps.map(([label, done]) => (
-                    <span key={label} className={done ? 'done' : label === now ? 'now' : ''}>{done ? '✓ ' : ''}{label}</span>
+            <div className="teb-phases">
+                {PHASES.map(([phase, steps]) => (
+                    <div key={phase} className="teb-phase">
+                        <div className="teb-phase-head">{phase}</div>
+                        <div className="teb-flow">
+                            {steps.map(([n, label]) => {
+                                const skipped = (n === 7 && p.customer_approval_required === false && p.step > 7) || (dropped && n > 3);
+                                const done = !skipped && (p.step > n || p.status === 'closed');
+                                const now = !ended && p.step === n;
+                                return (
+                                    <span key={n} className={skipped ? 'skip' : done ? 'done' : now ? 'now' : ''}>
+                                        {done ? '✓ ' : ''}{n}. {label}{skipped && n === 7 ? ' (not required)' : ''}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
                 ))}
             </div>
+
+            <NextStep p={p} isOwner={isOwner} stage={stage} />
 
             <div className="teb-grid teb-side">
                 <div className="teb-card">
@@ -53,10 +67,10 @@ export default function Show({ p, isOwner, myTurn, nextNo }) {
                                     <PencilIcon />
                                 </Link>
                             )}
-                            {p.teb_no && <a className="teb-btn sm ghost" href={tebUrl.form(p.id)} target="_blank" rel="noreferrer">TEB Form (print / PDF)</a>}
+                            {p.teb_no && <a className="teb-btn sm ghost" href={tebUrl.form(p.id)} target="_blank" rel="noreferrer">TRB Form (print / PDF)</a>}
                             {p.four_mcn && <a className="teb-btn sm ghost" href={tebUrl.fourMcnShow(p.id)} target="_blank" rel="noreferrer">4MCN Form {p.four_mcn.mcn_no}</a>}
-                            {adminCanAct && <Link className="teb-btn sm ghost" href={tebUrl.schedule(p.id)}>Schedule TEB Review</Link>}
-                            {isOwner && p.can_be_completed && <Link className="teb-btn sm" href={tebUrl.complete(p.id)}>Complete TEB form &amp; upload TEB Report</Link>}
+                            {adminCanAct && <Link className="teb-btn sm ghost" href={tebUrl.schedule(p.id)}>Schedule TRB Review</Link>}
+                            {isOwner && p.can_be_completed && <Link className="teb-btn sm" href={tebUrl.complete(p.id)}>Upload TRB Report (results)</Link>}
                             {isOwner && p.needs_4mcn && <Link className="teb-btn sm" href={tebUrl.fourMcnCreate(p.id)}>Generate 4MCN Form</Link>}
                         </div>
                     </div>
@@ -77,10 +91,10 @@ export default function Show({ p, isOwner, myTurn, nextNo }) {
                                 <span className="teb-chip">{f.type_label}</span> <a href={f.url}>{f.original_name}</a>
                             </div>
                         ))}
-                        {isOwner && p.status !== 'approved' && <UploadForm p={p} types={options.attachmentTypes} />}
+                        {isOwner && !ended && <UploadForm p={p} types={options.attachmentTypes} />}
                     </div>
                     <div className="teb-card">
-                        <h2>TEB reviews</h2>
+                        <h2>TRB reviews</h2>
                         {p.reviews.length === 0 && <p className="teb-muted">No review scheduled yet.</p>}
                         {p.reviews.map((r) => (
                             <div key={r.id} className="teb-item">
@@ -102,11 +116,34 @@ export default function Show({ p, isOwner, myTurn, nextNo }) {
                 </div>
             </div>
 
-            {p.approvals.length > 0 && (
-                <div className="teb-card" id="approval">
-                    <h2>Approval section</h2>
-                    <ApprovalSection approvals={p.approvals} />
-                    {myTurn && p.status === 'for_approval' && <DecisionForm myTurn={myTurn} />}
+            <div id="approval">
+                <ApprovalRounds approvals={p.approvals} open={p.approval_round}
+                    after={(round) => round === p.approval_round && (
+                        myTurn ? <DecisionForm myTurn={myTurn} />
+                            : myWait && (
+                                <div className="teb-small teb-noprint" style={{ marginTop: 16, color: 'var(--warn)' }}>
+                                    You sign as {myWait.label}. Your Approve button appears once these have approved: {myWait.on.join(', ')}.
+                                </div>
+                            )
+                    )} />
+            </div>
+
+            {p.gates.length > 0 && (
+                <div className="teb-card">
+                    <h2>Gate records</h2>
+                    <div className="teb-grid teb-g2">
+                        {p.gates.map((g) => (
+                            <div key={g.gate} className="teb-item">
+                                <strong>{g.step}. {g.title}</strong>
+                                <div className="teb-small teb-muted">{g.recorded_at} · {g.recorded_by}</div>
+                                {g.rows.map(([label, text]) => (
+                                    <div key={label} className="teb-small" style={{ marginTop: 4 }}>
+                                        <span className="teb-muted">{label}:</span> <span style={{ whiteSpace: 'pre-line' }}>{text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
@@ -130,12 +167,15 @@ function StatusForm({ p, options }) {
     const { data, setData, post, processing, errors } = useForm({
         status: options.reviewStatuses.includes(p.status) ? p.status : 'open',
         remarks: '',
+        assessment: { risks: '', investment: '', affected_documents: '', required_approvals: '' },
     });
+    const decision = ['reviewed', 'revise', 'dropped'].includes(data.status);
+    const assessLabels = { risks: 'Preliminary risks', investment: 'Investment', affected_documents: 'Affected processes / documents', required_approvals: 'Required approvals' };
 
     return (
         <form id="update-status" className="teb-grid" style={{ alignContent: 'start' }}
             onSubmit={(e) => { e.preventDefault(); post(tebUrl.status(p.id), { preserveScroll: true, onSuccess: () => setData('remarks', '') }); }}>
-            <label className="teb-l" htmlFor="status">Update status (TEB Admin)</label>
+            <label className="teb-l" htmlFor="status">Feasibility / review status (TRB Admin)</label>
             <div className="teb-row">
                 <select id="status" value={data.status} onChange={(e) => setData('status', e.target.value)} style={{ maxWidth: 220 }}>
                     {options.reviewStatuses.map((s) => (
@@ -146,11 +186,18 @@ function StatusForm({ p, options }) {
                 </select>
                 <button className="teb-btn" disabled={processing}>Update</button>
             </div>
-            <input type="text" value={data.remarks} onChange={(e) => setData('remarks', e.target.value)} placeholder="Remarks (optional)" />
+            <input type="text" value={data.remarks} onChange={(e) => setData('remarks', e.target.value)}
+                placeholder={data.status === 'revise' ? 'What should the originator revise? (required)' : 'Remarks (optional)'} />
+            {decision && Object.entries(assessLabels).map(([k, label]) => (
+                <input key={k} type="text" value={data.assessment[k]} placeholder={`${label} (assessment)`}
+                    onChange={(e) => setData('assessment', { ...data.assessment, [k]: e.target.value })} />
+            ))}
             {errors.status && <div className="teb-err">{errors.status}</div>}
+            {errors.remarks && <div className="teb-err">{errors.remarks}</div>}
+            <div className="teb-small teb-muted">Step 3 Feasibility: Reviewed = feasible, Revise = back to the originator, Closed (Do not proceed) ends the project.</div>
             {p.review_block
                 ? <div className="teb-small teb-muted">{p.review_block}</div>
-                : !p.teb_no && <div className="teb-small teb-muted">Setting “Reviewed” before a TEB No. exists moves the entry to Pending TEB Number.</div>}
+                : !p.teb_no && <div className="teb-small teb-muted">Setting “Reviewed” before a TRB No. exists moves the entry to Pending TRB Number.</div>}
         </form>
     );
 }
@@ -159,11 +206,11 @@ function AssignForm({ p, nextNo }) {
     const tebUrl = useTebUrl();
     const { post, processing } = useForm({});
 
-    // TEB No. is system generated (yyyy-NNNNN); the admin only confirms it.
+    // TRB No. is system generated (yyyy-NNNNN); the admin only confirms it.
     return (
         <form className="teb-grid" style={{ alignContent: 'start' }}
             onSubmit={(e) => { e.preventDefault(); post(tebUrl.assign(p.id), { preserveScroll: true }); }}>
-            <label className="teb-l">Assign TEB Number (TEB Admin)</label>
+            <label className="teb-l">Assign TRB Number (TRB Admin)</label>
             <div className="teb-row">
                 <span className="teb-chip" style={{ fontSize: 14, padding: '6px 12px' }}>Next: {nextNo}</span>
                 <button className="teb-btn" disabled={processing}>Assign</button>

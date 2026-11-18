@@ -5,7 +5,7 @@ namespace App\Services\Teb;
 
 use App\Models\Teb\TebReview;
 
-// Calendar invite for "Schedule TEB Review" (slide 3).
+// Calendar invite for "Schedule TRB Review" (slide 3).
 class IcsBuilder
 {
     public static function forReview(TebReview $review, ?string $organizerEmail = null): string
@@ -14,9 +14,9 @@ class IcsBuilder
         $start = $review->review_at->copy()->utc();
         $end   = $start->copy()->addMinutes((int) $review->duration_minutes ?: 60);
 
-        $summary = 'TEB Review: ' . ($p->teb_no ? "{$p->teb_no} " : '') . $p->title;
+        $summary = 'TRB Review: ' . ($p->teb_no ? "{$p->teb_no} " : '') . $p->title;
         $desc    = implode("\n", array_filter([
-            "TEB Change Title: {$p->title}",
+            "TRB Change Title: {$p->title}",
             "Category: {$p->category_label}",
             "Customer: {$p->customer_name}",
             "Project Owner: {$p->owner_name} ({$p->owner_department})",
@@ -33,7 +33,7 @@ class IcsBuilder
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//TEB Portal//EN',
+            'PRODID:-//TRB Portal//EN',
             // PUBLISH, not REQUEST: Exchange Online turns a REQUEST into a meeting and takes the
             // recipients from ATTENDEE lines, rejecting the mail with "contains no recipients".
             'METHOD:PUBLISH',

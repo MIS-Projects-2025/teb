@@ -16,6 +16,7 @@ Route::prefix($app_name)->group(function () {
   // intercept and redirect away before the actual logout logic ever ran.
   Route::get("/logout", [AuthenticationController::class, 'logout'])->name('logout');
   Route::get("/session/siblings", [AuthenticationController::class, 'siblings'])->name('session.siblings');
+  Route::get("/session/list", [AuthenticationController::class, 'sessions'])->name('session.list');
 
   Route::get("/unauthorized", function () {
     return Inertia::render('Unauthorized');

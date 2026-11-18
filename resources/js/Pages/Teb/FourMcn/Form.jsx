@@ -4,7 +4,7 @@ import Field from '../../../Components/Teb/Field';
 import { useTebUrl } from '../../../Components/Teb/urls';
 
 // "4MCN?" yes -> Generate System Generated 4MCN Form (Originator).
-// Laid out like CS-027 "4M Change Application/Notification to ADGT", prefilled from the TEB entry.
+// Laid out like CS-027 "4M Change Application/Notification to ADGT", prefilled from the TRB entry.
 export default function Form({ p, today }) {
     const tebUrl = useTebUrl();
     const { fourMItems, classifications, typesOfChange } = usePage().props.teb.options;
@@ -17,8 +17,10 @@ export default function Form({ p, today }) {
         effectivity_date: '',
         expiration_date: '',
         extension_no: '',
-        before_change: p.current_status ?? '',
-        after_change: p.change_description ?? '',
+        // Current Status (before change) = charter Problem / Opportunity Statement; Change Description (after change) = charter Project Scope.
+        // Entries registered before the charter fall back to their old Current Status / Change Description. Still editable here.
+        before_change: p.charter?.problem_statement || p.current_status || '',
+        after_change: p.charter?.project_scope || p.change_description || '',
         reason: p.project_description ?? '',
         attachments_note: p.attachments.map((a) => `${a.type_label}: ${a.original_name}`).join('\n'),
     });
@@ -36,7 +38,7 @@ export default function Form({ p, today }) {
                         </Field>
                         <div className="teb-grid teb-g2">
                             <Field label="4MCN#"><input type="text" value="Auto-generated on save" disabled /></Field>
-                            <Field label="TEB No"><input type="text" value={p.teb_no ?? ''} disabled /></Field>
+                            <Field label="TRB No"><input type="text" value={p.teb_no ?? ''} disabled /></Field>
                         </div>
                     </div>
                     <div className="teb-grid teb-g2">

@@ -51,29 +51,13 @@ class AuthMiddleware
             return $this->redirectToLogin($request)->withCookie($expiredCookie);
         }
 
-        // Tab-close grace window — 3s to let a refresh self-heal
-        if ($currentUser->pending_logout_at) {
-            $secondsSincePending = \Carbon\Carbon::parse($currentUser->pending_logout_at)->diffInSeconds(now());
-
-            if ($secondsSincePending >= 3) {
-                DB::connection('authify')->table('authify_sessions')->where('token', $token)->delete();
-                session()->forget('emp_data');
-                session()->flush();
-                $expiredCookie = cookie()->forget($cookieName);
-                return $this->redirectToLogin($request)->withCookie($expiredCookie);
-            }
-
-            DB::connection('authify')->table('authify_sessions')
-                ->where('token', $token)
-                ->update(['pending_logout_at' => null]);
-        }
-
         $isFromAllowed = $currentUser->emp_from === null;
         if (!$isFromAllowed) {
             session()->forget('emp_data');
             session()->flush();
             $redirectUrl = urlencode(route('dashboard'));
-            $authifyUrl  = config('services.authify.base_url') . "/logout?redirect={$redirectUrl}";
+            $authifyUrl  = config('services.authify.base_url')
+                . "/logout?token={$token}&redirect={$redirectUrl}&portal_id={$portalId}";
 
             return Inertia::render('Unauthorized', [
                 'logoutUrl' => $authifyUrl,
@@ -191,9 +175,6 @@ class AuthMiddleware
 
     private function unauthorizedResponse(Request $request)
     {
-        if ($request->header('X-Inertia')) {
-            return $this->redirectToLogin($request);
-        }
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => 'Session expired. Please log in again.'], 401);
         }

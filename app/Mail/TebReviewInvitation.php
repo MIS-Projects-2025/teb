@@ -12,15 +12,13 @@ use Illuminate\Mail\Mailables\Envelope;
 
 class TebReviewInvitation extends Mailable
 {
-    public function __construct(public TebReview $review)
-    {
-    }
+    public function __construct(public TebReview $review) {}
 
     public function envelope(): Envelope
     {
         $p = $this->review->project;
 
-        return new Envelope(subject: 'TEB Review: '.($p->teb_no ? "{$p->teb_no} " : '').$p->title);
+        return new Envelope(subject: 'TRB Review: ' . ($p->teb_no ? "{$p->teb_no} " : '') . $p->title);
     }
 
     public function content(): Content
@@ -31,7 +29,7 @@ class TebReviewInvitation extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn () => IcsBuilder::forReview($this->review), 'teb-review.ics')
+            Attachment::fromData(fn() => IcsBuilder::forReview($this->review), 'teb-review.ics')
                 ->withMime('text/calendar; method=REQUEST'),
         ];
     }

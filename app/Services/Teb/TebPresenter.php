@@ -36,10 +36,12 @@ class TebPresenter
     {
         return self::row($p) + [
             'customer_id'          => $p->customer_id,
+            'customer_ids'         => $p->customer_ids ?? ($p->customer_id ? [(string) $p->customer_id] : []),
             'classification'       => $p->classification,
             'types_of_change'      => $p->types_of_change ?? [],
             'current_status'       => $p->current_status,
             'change_description'   => $p->change_description,
+            'charter'              => (object) ($p->charter ?? []),
             'owner_employid'       => $p->owner_employid,
             'requires_4mcn'        => $p->requires_4mcn,
             'completion_remarks'   => $p->completion_remarks,
@@ -47,6 +49,15 @@ class TebPresenter
             'approved_at'          => $p->approved_at?->format('m/d/Y'),
             'is_editable'          => $p->isEditable(),
             'can_be_completed'     => $p->canBeCompleted(),
+            'can_submit_plan'      => $p->canSubmitPlan(),
+            'step'                 => $p->step(),
+            'approval_round'       => $p->approvalRound(),
+            'customer_approval_required' => $p->customer_approval_required,
+            'plan_submitted_at'    => $p->plan_submitted_at?->format('m/d/Y H:i'),
+            'implemented_at'       => $p->implemented_at?->format('m/d/Y'),
+            'closed_at'            => $p->closed_at?->format('m/d/Y'),
+            'gates'                => TebGates::present($p),
+            'uses_customer_product'=> (bool) TebGates::value($p, 'plan', 'uses_customer_product'),
             'review_block'         => $p->reviewBlockReason(),
             'affected_areas'       => $p->covers_all_departments ? ['All departments'] : $p->affectedAreas->pluck('dep_name')->filter()->values()->all(),
             'affected_area_ids'    => $p->affectedAreas->pluck('department_id')->map(fn ($id) => (int) $id)->all(),
@@ -68,9 +79,11 @@ class TebPresenter
             ])->values()->all() : [],
             'approvals'            => $p->relationLoaded('approvals') ? $p->approvals->map(fn (TebApproval $a) => [
                 'id'               => $a->id,
+                'round'            => $a->round,
                 'department_group' => $a->department_group,
                 'level'            => $a->level,
                 'level_label'      => $a->level_label,
+                'executive'        => $a->isExecutive(),
                 'approver_employid'=> $a->approver_employid,
                 'approver_name'    => $a->approver_name,
                 'status'           => $a->status,
@@ -110,13 +123,21 @@ class TebPresenter
     public static function options(): array
     {
         return [
-            'categories'      => config('teb.categories'),
+            'categories'      => collect(config('teb.bmp_drivers'))->map(fn ($l, $d) => "{$d} – {$l}")->all(),
             'classifications' => config('teb.classifications'),
             'typesOfChange'   => config('teb.types_of_change'),
             'approvalLevels'  => config('teb.approval_levels'),
             'fourMItems'      => config('teb.4m_items'),
+            'charterFields'   => TebProject::CHARTER_FIELDS,
+            'charterRequired' => TebProject::CHARTER_REQUIRED,
+            'bmpDrivers'      => config('teb.bmp_drivers'),
+            // Every category (retired ones too, so older entries still label theirs); bmpInactive lists the retired ones.
+            'bmpCategories'   => \App\Models\Teb\TebBmpCategory::map(),
+            'bmpInactive'     => \App\Models\Teb\TebBmpCategory::inactive(),
             'statuses'        => TebProject::STATUS_LABELS,
             'reviewStatuses'  => TebProject::REVIEW_STATUSES,
+            'preFeasibility'  => TebProject::PRE_FEASIBILITY_STATUSES,
+            'roundLabels'     => TebApproval::ROUND_LABELS,
             'attachmentTypes' => \App\Models\Teb\TebAttachment::TYPE_LABELS,
         ];
     }

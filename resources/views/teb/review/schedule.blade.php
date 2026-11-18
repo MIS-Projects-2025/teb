@@ -1,9 +1,11 @@
 @extends('teb.layout')
-@section('title', 'Schedule TEB Review')
+@section('title', 'Schedule TRB Review')
 @section('content')
-<h1>Schedule TEB Review</h1>
+<h1>Schedule TRB Review</h1>
 <div class="grid g2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
-  <div class="card"><h2>Registered project</h2>@include('teb.partials.details', ['p' => $p])</div>
+  <div class="card">
+    <h2>Registered project</h2>@include('teb.partials.details', ['p' => $p])
+  </div>
   <form method="post" action="{{ route('teb.review.schedule.store', $p) }}" class="card grid" style="align-content:start">
     @csrf
     <h2>Calendar invite</h2>
@@ -17,7 +19,7 @@
       <input type="text" placeholder="Filter by name…" oninput="const q=this.value.toLowerCase();document.querySelectorAll('#reviewees label').forEach(l=>l.style.display=l.textContent.toLowerCase().includes(q)?'':'none')" style="margin-bottom:6px">
       <div class="multi" id="reviewees" style="max-height:260px">
         @foreach($employees as $e)
-          <label><input type="checkbox" name="reviewees[]" value="{{ $e->employid }}" @checked(in_array((string) $e->employid, old('reviewees', []), true))> {{ $e->lastname }}, {{ $e->firstname }}</label>
+        <label><input type="checkbox" name="reviewees[]" value="{{ $e->employid }}" @checked(in_array((string) $e->employid, old('reviewees', []), true))> {{ $e->lastname }}, {{ $e->firstname }}</label>
         @endforeach
       </div>
       <div class="small muted">The project owner is always invited. Each invite carries the project details and an .ics calendar file.</div>

@@ -10,7 +10,7 @@ use Inertia\Inertia;
 
 abstract class TebController extends Controller
 {
-    // Every TEB page gets the viewer's role and the shared lookups.
+    // Every TRB page gets the viewer's role and the shared lookups.
     protected function render(string $page, array $props = [])
     {
         $user = TebUser::current();
@@ -20,7 +20,7 @@ abstract class TebController extends Controller
                 'me'      => $user?->id,
                 'isAdmin' => TebUser::isAdmin($user),
                 'options' => TebPresenter::options(),
-                // Path of the app home (/{APP_NAME}); every TEB link is built from it.
+                // Path of the app home (/{APP_NAME}); every TRB link is built from it.
                 'base'    => rtrim((string) parse_url(route('dashboard'), PHP_URL_PATH), '/'),
                 'logout'  => \Illuminate\Support\Facades\Route::has('logout') ? route('logout') : null,
             ],

@@ -5,7 +5,7 @@ namespace App\Models\Qdn;
 
 use Illuminate\Database\Eloquent\Model;
 
-// qdn_db.customer_list — read only, used for the TEB "Customer" dropdown.
+// qdn_db.customer_list — read only, used for the TRB "Customer" dropdown.
 class Customer extends Model
 {
     public $timestamps = false;

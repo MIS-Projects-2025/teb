@@ -17,8 +17,17 @@ class TebApproval extends TebModel
 
     const ANY_LEVEL = 'any';
 
+    // Step 4 trial plan approval, step 6 results / TSPI approval.
+    const ROUND_PLAN    = 'plan';
+    const ROUND_RESULTS = 'results';
+    const ROUND_LABELS  = [
+        self::ROUND_PLAN    => 'Trial Plan Approval',
+        self::ROUND_RESULTS => 'Results / TSPI Approval',
+    ];
+
     protected $fillable = [
         'teb_project_id',
+        'round',
         'department_group',
         'department_id',
         'dep_name',
@@ -46,8 +55,18 @@ class TebApproval extends TebModel
         return $this->belongsTo(Employee::class, 'approver_employid', 'employid');
     }
 
+    // Operation Director / President rows (Major changes): company-wide, not tied to a department.
+    public function isExecutive(): bool
+    {
+        return array_key_exists($this->level, config('teb.executive_approvals', []));
+    }
+
     public function getLevelLabelAttribute(): string
     {
+        if ($this->isExecutive()) {
+            return config("teb.executive_approvals.{$this->level}.label");
+        }
+
         return $this->level === self::ANY_LEVEL
             ? implode(' / ', config('teb.approval_levels'))
             : (config('teb.approval_levels')[$this->level] ?? $this->level);
@@ -59,6 +78,9 @@ class TebApproval extends TebModel
     {
         if (! $user) {
             return false;
+        }
+        if ($this->isExecutive()) {
+            return in_array((string) $user->id, \App\Services\Teb\ApproverCandidates::eligibleExecutive($this->level), true);
         }
         $dept   = $this->department_id ? (int) $this->department_id : null;
         $levels = $this->level === self::ANY_LEVEL ? array_keys(config('teb.approval_levels')) : [$this->level];
@@ -76,26 +98,54 @@ class TebApproval extends TebModel
     public function scopeSignableBy($query, \App\Services\Teb\TebActor $user)
     {
         $pairs = \App\Services\Teb\ApproverCandidates::signableBy($user->id);
+        $roles = array_values(array_filter(array_keys(config('teb.executive_approvals', [])),
+            fn ($key) => in_array((string) $user->id, \App\Services\Teb\ApproverCandidates::eligibleExecutive($key), true)));
 
-        return $query->where('status', self::PENDING)->where(function ($q) use ($pairs) {
+        return $query->where('status', self::PENDING)->where(function ($q) use ($pairs, $roles) {
             $q->whereRaw('1 = 0');
+            if ($roles) {
+                $q->orWhereIn('level', $roles);
+            }
             foreach ($pairs as [$dept, $level]) {
-                $q->orWhere(fn($w) => $w->where('department_id', $dept)->whereIn('level', [$level, self::ANY_LEVEL]));
+                $q->orWhere(fn ($w) => $w->where('department_id', $dept)->whereIn('level', [$level, self::ANY_LEVEL]));
             }
         });
     }
 
-    // Departments sign at the same time. Older per-level rows: lower levels of the same department sign first.
+    // Departments sign at the same time. Operation Director, then President, sign after every row before them.
+    // Older per-level rows: lower levels of the same department sign first.
     public function isTurn(): bool
     {
+        return $this->status === self::PENDING && ! $this->before()->exists();
+    }
+
+    // The boxes that must sign before this one, by name (e.g. ['Manufacturing', 'Quality Assurance']).
+    // Shown to an eligible signer whose turn has not come yet, so they know why there is no Approve button.
+    public function waitingOn(): array
+    {
         if ($this->status !== self::PENDING) {
-            return false;
+            return [];
         }
 
-        return ! static::where('teb_project_id', $this->teb_project_id)
-            ->where('department_group', $this->department_group)
+        return $this->before()->orderBy('level_order')->orderBy('department_order')->get()
+            ->map(fn (self $a) => $a->sign_label)->unique()->values()->all();
+    }
+
+    // Unsigned rows ahead of this one in the same round.
+    protected function before()
+    {
+        return static::where('teb_project_id', $this->teb_project_id)
+            ->where('round', $this->round)
             ->where('level_order', '<', $this->level_order)
             ->where('status', '!=', self::APPROVED)
-            ->exists();
+            ->when(! $this->isExecutive(), fn ($q) => $q->where('department_group', $this->department_group));
+    }
+
+    // "Manufacturing", "Others: Facilities", "Operation Director"; older per-level rows add the level.
+    public function getSignLabelAttribute(): string
+    {
+        return $this->level === self::ANY_LEVEL || $this->isExecutive()
+            ? $this->department_group
+            : "{$this->department_group} {$this->level_label}";
     }
 }
