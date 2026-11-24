@@ -35,7 +35,10 @@ class TebFlowTest extends TestCase
         $s = DB::connection('authify')->table('authify_sessions')->where('emp_id', $id)->first();
 
         return $this->withSession(['emp_data' => [
-            'token' => $s->token, 'emp_id' => $s->emp_id, 'emp_name' => $s->emp_name, 'emp_dept' => $s->emp_dept,
+            'token' => $s->token,
+            'emp_id' => $s->emp_id,
+            'emp_name' => $s->emp_name,
+            'emp_dept' => $s->emp_dept,
         ]]);
     }
 
@@ -52,7 +55,8 @@ class TebFlowTest extends TestCase
             'fmea'                => UploadedFile::fake()->create('fmea.xlsx', 20),
             'types_of_change'     => ['permanent', 'addition'],
             'affected_areas'      => [$d('Production'), $d('Facilities')],
-            'project_description' => 'Install and qualify oven', 'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
+            'project_description' => 'Install and qualify oven',
+            'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
             'current_status'      => 'Old oven',
             'change_description'  => 'New oven',
         ])->assertSessionHasNoErrors()->assertRedirect();
@@ -68,7 +72,7 @@ class TebFlowTest extends TestCase
     public function test_dashboard_renders_with_session_user(): void
     {
         $this->as('2001')->get(route('dashboard'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Dashboard')
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Dashboard')
                 ->where('teb.me', '2001')->where('teb.isAdmin', false)->where('total', 0)->etc());
     }
 
@@ -77,31 +81,41 @@ class TebFlowTest extends TestCase
         // A Production supervisor registers a project.
         $d = $this->fx['dept'];
         $this->as('2001')->post(route('teb.projects.store'), [
-            'title' => 'Line 2 fixture', 'category' => 'machine_modification', 'bmp' => ['T' => 'Equipment & System Enhancement'],
-            'types_of_change' => ['addition'], 'affected_areas' => [$d('Production')], 'project_description' => 'New fixture', 'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
+            'title' => 'Line 2 fixture',
+            'category' => 'machine_modification',
+            'bmp' => ['T' => 'Equipment & System Enhancement'],
+            'types_of_change' => ['addition'],
+            'affected_areas' => [$d('Production')],
+            'project_description' => 'New fixture',
+            'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
         ])->assertSessionHasNoErrors()->assertRedirect();
         $p = TebProject::latest('id')->first();
         $this->assertSame('Production', $p->owner_department);
 
         $this->as('2001')->get(route('dashboard'))
-            ->assertInertia(fn (Page $page) => $page->where('teb.isAdmin', false)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('teb.isAdmin', false)->etc());
         $this->as('2004')->get(route('dashboard')) // Process Engineering supervisor
-            ->assertInertia(fn (Page $page) => $page->where('teb.isAdmin', true)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('teb.isAdmin', true)->etc());
         $this->as('2004')->get(route('teb.review.index'))->assertOk();
     }
 
     public function test_all_departments_selected_shows_all_departments(): void
     {
-        $all = \App\Models\Lookups\Department::pluck('id')->map(fn ($id) => (int) $id)->all();
+        $all = \App\Models\Lookups\Department::pluck('id')->map(fn($id) => (int) $id)->all();
         $this->as('1001')->post(route('teb.projects.store'), [
-            'title' => 'Plant-wide', 'category' => 'procedure', 'bmp' => ['T' => 'Equipment & System Enhancement'], 'types_of_change' => ['revision'],
-            'affected_areas' => $all, 'project_description' => 'Affects everyone', 'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
+            'title' => 'Plant-wide',
+            'category' => 'procedure',
+            'bmp' => ['T' => 'Equipment & System Enhancement'],
+            'types_of_change' => ['revision'],
+            'affected_areas' => $all,
+            'project_description' => 'Affects everyone',
+            'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
         ])->assertRedirect();
         $p = TebProject::where('title', 'Plant-wide')->firstOrFail();
         $this->assertCount(count($all), $p->affectedAreas);
 
         $this->as('1001')->get(route('teb.projects.show', $p))
-            ->assertInertia(fn (Page $page) => $page->where('p.affected_areas', ['All departments'])
+            ->assertInertia(fn(Page $page) => $page->where('p.affected_areas', ['All departments'])
                 ->where('p.affected_areas_label', 'All departments')->etc());
     }
 
@@ -132,7 +146,10 @@ class TebFlowTest extends TestCase
     protected function authorizeTrial(TebProject $p): void
     {
         $this->as('1001')->post(route('teb.projects.plan', $p), [
-            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 10), 'acceptance_criteria' => 'Cpk >= 1.33', 'uses_customer_product' => 0])->assertSessionHasNoErrors();
+            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 10),
+            'acceptance_criteria' => 'Cpk >= 1.33',
+            'uses_customer_product' => 0
+        ])->assertSessionHasNoErrors();
         $this->assertSame(TebProject::STATUS_PLAN_FOR_APPROVAL, $p->fresh()->status);
         foreach ($p->approvals()->where('round', 'plan')->orderBy('level_order')->get() as $a) {
             $this->as($this->signer($a))->post(route('teb.approvals.act', $a), ['decision' => 'approved'])->assertSessionHasNoErrors();
@@ -154,14 +171,21 @@ class TebFlowTest extends TestCase
 
     public function test_classification_follows_bmp_categories(): void
     {
-        $base = ['title' => 'x', 'category' => 'procedure', 'types_of_change' => ['revision'], 'affected_areas' => [1],
-            'charter' => ['problem_statement' => 'p', 'goal_statement' => 'g', 'project_scope' => 's']];
+        $base = [
+            'title' => 'x',
+            'category' => 'procedure',
+            'types_of_change' => ['revision'],
+            'affected_areas' => [1],
+            'charter' => ['problem_statement' => 'p', 'goal_statement' => 'g', 'project_scope' => 's']
+        ];
         $this->as('1001')->post(route('teb.projects.store'), $base)->assertSessionHasErrors(['bmp', 'classification']);
         $this->as('1001')->post(route('teb.projects.store'), $base + ['bmp' => ['T' => '']])->assertSessionHasErrors(['bmp.T' => 'Pick the Technology category.']);
         $this->as('1001')->post(route('teb.projects.store'), $base + ['bmp' => ['T' => 'Not a category']])->assertSessionHasErrors('bmp.T');
         // Minor + Minor = Minor; the client cannot override it.
-        $this->as('1001')->post(route('teb.projects.store'), $base + ['classification' => 'major',
-            'bmp' => ['T' => 'Automation & Digitalization', 'R' => 'Alert & Escalation Management']])->assertSessionHasNoErrors();
+        $this->as('1001')->post(route('teb.projects.store'), $base + [
+            'classification' => 'major',
+            'bmp' => ['T' => 'Automation & Digitalization', 'R' => 'Alert & Escalation Management']
+        ])->assertSessionHasNoErrors();
         $p = TebProject::latest('id')->first();
         $this->assertSame('minor', $p->classification);
         $this->assertSame(['T' => 'Automation & Digitalization', 'R' => 'Alert & Escalation Management'], $p->charter['bmp']);
@@ -171,22 +195,28 @@ class TebFlowTest extends TestCase
         $this->assertSame(implode(', ', $p->charter['bmp']), $p->category_label);
 
         // Members and Sponsor(s) are picked from the masterlist, several each; names are stored with the ids.
-        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, ['bmp' => ['T' => 'Automation & Digitalization'],
-            'charter' => ['member_ids' => ['2001', '2004'], 'sponsor_ids' => ['3002', '3003']]]))->assertSessionHasNoErrors();
+        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, [
+            'bmp' => ['T' => 'Automation & Digitalization'],
+            'charter' => ['member_ids' => ['2001', '2004'], 'sponsor_ids' => ['3002', '3003']]
+        ]))->assertSessionHasNoErrors();
         $c = TebProject::latest('id')->first()->charter;
         $this->assertSame('Sup Production, Sup ProcessEngineering', $c['members']);
         $this->assertSame(['3002', '3003'], $c['sponsor_ids']);
         $this->assertSame('Dora Director, Pia President', $c['sponsor_name']);
 
         // Timeline is picked on a calendar (start and target completion); the end can't be before the start.
-        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, ['bmp' => ['T' => 'Automation & Digitalization'],
-            'charter' => ['timeline_start' => '2026-11-10', 'timeline_end' => '2027-02-28']]))->assertSessionHasNoErrors();
+        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, [
+            'bmp' => ['T' => 'Automation & Digitalization'],
+            'charter' => ['timeline_start' => '2026-11-10', 'timeline_end' => '2027-02-28']
+        ]))->assertSessionHasNoErrors();
         $c = TebProject::latest('id')->first()->charter;
         $this->assertSame('Nov 10, 2026 – Feb 28, 2027', $c['timeline']);
         $this->assertSame('2027-02-28', $c['timeline_end']);
-        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, ['bmp' => ['T' => 'Automation & Digitalization'],
-            'charter' => ['timeline_start' => '2026-11-10', 'timeline_end' => '2026-11-01']]))->assertSessionHasErrors('charter.timeline_end');
-        $this->as('1001')->get(route('teb.projects.create'))->assertInertia(fn (Page $page) => $page->where('employees.0.name', 'Cruz, Ben · Process Engineering')->etc());
+        $this->as('1001')->post(route('teb.projects.store'), array_replace_recursive($base, [
+            'bmp' => ['T' => 'Automation & Digitalization'],
+            'charter' => ['timeline_start' => '2026-11-10', 'timeline_end' => '2026-11-01']
+        ]))->assertSessionHasErrors('charter.timeline_end');
+        $this->as('1001')->get(route('teb.projects.create'))->assertInertia(fn(Page $page) => $page->where('employees.0.name', 'Cruz, Ben · Process Engineering')->etc());
         // Any Major category makes it Major (and then FMEA is required).
         $this->as('1001')->post(route('teb.projects.store'), $base + ['bmp' => ['T' => 'Automation & Digitalization', 'C' => 'Scrap Reduction']])->assertSessionHasErrors('fmea');
     }
@@ -194,15 +224,19 @@ class TebFlowTest extends TestCase
     public function test_bmp_maintenance(): void
     {
         $this->assertSame('major', \App\Models\Teb\TebBmpCategory::map()['T']['Machine & Process Qualification']);
-        $base = ['title' => 'x', 'types_of_change' => ['revision'], 'affected_areas' => [1],
-            'charter' => ['problem_statement' => 'p', 'goal_statement' => 'g', 'project_scope' => 's']];
+        $base = [
+            'title' => 'x',
+            'types_of_change' => ['revision'],
+            'affected_areas' => [1],
+            'charter' => ['problem_statement' => 'p', 'goal_statement' => 'g', 'project_scope' => 's']
+        ];
 
         // Admins only.
         $this->as('2001')->post(route('teb.settings.bmp.store'), ['driver' => 'T', 'name' => 'Robotics', 'classification' => 'major'])->assertRedirect(route('dashboard'));
         $this->assertSame(0, \App\Models\Teb\TebBmpCategory::where('name', 'Robotics')->count());
         $this->as('1001')->post(route('teb.settings.bmp.store'), ['driver' => 'T', 'name' => 'Robotics', 'classification' => 'minor'])->assertSessionHasNoErrors();
         $this->as('1001')->post(route('teb.settings.bmp.store'), ['driver' => 'T', 'name' => 'Robotics', 'classification' => 'major'])->assertSessionHasErrors('name');
-        $this->as('1001')->get(route('teb.settings'))->assertInertia(fn (Page $page) => $page->where('teb.options.bmpCategories.T.Robotics', 'minor')->etc());
+        $this->as('1001')->get(route('teb.settings'))->assertInertia(fn(Page $page) => $page->where('teb.options.bmpCategories.T.Robotics', 'minor')->etc());
 
         // A new category is offered on the form and carries its classification.
         $this->as('2001')->post(route('teb.projects.store'), $base + ['bmp' => ['T' => 'Robotics']])->assertSessionHasNoErrors();
@@ -235,8 +269,12 @@ class TebFlowTest extends TestCase
     public function test_major_change_requires_fmea(): void
     {
         $this->as('1001')->post(route('teb.projects.store'), [
-            'title' => 'x', 'category' => 'procedure', 'bmp' => ['T' => 'Machine & Process Qualification'], 'types_of_change' => ['revision'],
-            'affected_areas' => [1], 'project_description' => 'y',
+            'title' => 'x',
+            'category' => 'procedure',
+            'bmp' => ['T' => 'Machine & Process Qualification'],
+            'types_of_change' => ['revision'],
+            'affected_areas' => [1],
+            'project_description' => 'y',
         ])->assertSessionHasErrors('fmea');
     }
 
@@ -258,13 +296,16 @@ class TebFlowTest extends TestCase
 
         // TRB Admin schedules review -> Open, invites sent.
         $this->as('1002')->get(route('teb.review.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Review/Index')->has('projects.data', 1)
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Review/Index')->has('projects.data', 1)
                 ->where('projects.data.0.title', $p->title)->where('teb.isAdmin', true)->etc());
         $this->as('1002')->get(route('teb.review.schedule', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Review/Schedule')->where('emails', ['ben.cruz@example.test', 'pe.sup@example.test', 'prod.sup@example.test'])->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Review/Schedule')->where('emails', ['ben.cruz@example.test', 'pe.sup@example.test', 'prod.sup@example.test'])->etc());
         $this->as('1002')->post(route('teb.review.schedule.store', $p), [
-            'review_at' => now()->addDay()->format('Y-m-d\TH:i'), 'duration_minutes' => 60, 'location' => 'Conf A',
-            'reviewees' => ['prod.sup@example.test', 'pe.sup@example.test'], 'notes' => 'Bring FMEA',
+            'review_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'duration_minutes' => 60,
+            'location' => 'Conf A',
+            'reviewees' => ['prod.sup@example.test', 'pe.sup@example.test'],
+            'notes' => 'Bring FMEA',
         ])->assertRedirect();
         Mail::assertSent(TebReviewInvitation::class, 3);
         $this->as('2001')->post(route('teb.review.resend', [$p, $p->reviews()->first()]))->assertRedirect(route('dashboard'));
@@ -275,7 +316,7 @@ class TebFlowTest extends TestCase
         $fresh = $p->reviews()->first();
         $fresh->duration_minutes = '30';
         $invite = new TebReviewInvitation($fresh);
-        $ics = $invite->attachments()[0]->attachWith(fn () => null, fn ($data) => $data());
+        $ics = $invite->attachments()[0]->attachWith(fn() => null, fn($data) => $data());
         $this->assertStringContainsString('BEGIN:VCALENDAR', $ics);
         $this->assertStringContainsString('METHOD:PUBLISH', $ics); // REQUEST makes Exchange reject the mail
         $this->assertStringNotContainsString('method=REQUEST', $invite->attachments()[0]->mime ?? '');
@@ -297,7 +338,7 @@ class TebFlowTest extends TestCase
         // Assign TRB No -> Reviewed.
         $this->as('1002')->post(route('teb.review.assign', $p))->assertRedirect();
         $p->refresh();
-        $this->assertSame(now()->format('Y').'-00001', $p->teb_no);
+        $this->assertSame(now()->format('Y') . '-00001', $p->teb_no);
         $this->assertSame(TebProject::STATUS_REVIEWED, $p->status);
 
         // Step 4: the trial plan cannot be skipped; results can only be uploaded once the trial is authorized.
@@ -317,19 +358,25 @@ class TebFlowTest extends TestCase
         // Step 5: a trial on customer product needs the customer trial authorization before the results.
         $p->update(['gate_records' => ['plan' => ['acceptance_criteria' => 'Cpk >= 1.33', 'uses_customer_product' => true]]]);
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'teb_report' => UploadedFile::fake()->create('report.pdf', 50), 'requires_4mcn' => 1, 'conclusion' => 'Passed',
+            'teb_report' => UploadedFile::fake()->create('report.pdf', 50),
+            'requires_4mcn' => 1,
+            'conclusion' => 'Passed',
         ])->assertSessionHasErrors('customer_trial');
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'requires_4mcn' => 1, 'conclusion' => 'Passed',
+            'requires_4mcn' => 1,
+            'conclusion' => 'Passed',
         ])->assertSessionHasErrors('customer_trial');
         $p->attachments()->where('type', 'teb_report')->delete();
 
         // Step 6: originator completes with TRB report -> For Approval, approvals built.
         $this->as('1001')->get(route('teb.projects.complete', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Projects/Complete')->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Projects/Complete')->etc());
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'teb_report' => UploadedFile::fake()->create('report.pdf', 50), 'requires_4mcn' => 1, 'conclusion' => 'Passed',
-            'customer_trial' => UploadedFile::fake()->create('acme-trial-ok.pdf', 5), 'residual_risks' => 'None open',
+            'teb_report' => UploadedFile::fake()->create('report.pdf', 50),
+            'requires_4mcn' => 1,
+            'conclusion' => 'Passed',
+            'customer_trial' => UploadedFile::fake()->create('acme-trial-ok.pdf', 5),
+            'residual_risks' => 'None open',
         ])->assertSessionHasNoErrors()->assertRedirect();
         $this->assertSame('None open', $p->fresh()->gate_records['results']['residual_risks']);
         $p->refresh();
@@ -343,9 +390,9 @@ class TebFlowTest extends TestCase
         // A Manufacturing Supervisor sees it in their list and on the project page it is their turn.
         $box = $this->results($p)->where('department_group', 'Manufacturing')->first();
         $this->as($this->signer($box))->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Approvals/Index')->where('projects.data.0.teb_no', $p->teb_no)->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Approvals/Index')->where('projects.data.0.teb_no', $p->teb_no)->etc());
         $this->as($this->signer($box))->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Projects/Show')->where('myTurn.id', $box->id)->has('p.approvals', 14)->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Projects/Show')->where('myTurn.id', $box->id)->has('p.approvals', 14)->etc());
 
         // Someone outside Manufacturing / without an approval level cannot sign it.
         $this->as('1001')->post(route('teb.approvals.act', $box), ['decision' => 'approved'])->assertSessionHasErrors('approval');
@@ -375,7 +422,9 @@ class TebFlowTest extends TestCase
         // Step 7: the ADI Oversight Team is emailed (picked or typed addresses).
         $this->as('1002')->post(route('teb.projects.stage', $p), ['action' => 'notify_adi'])->assertSessionHasErrors('emails');
         $this->as('1002')->post(route('teb.projects.stage', $p), ['action' => 'notify_adi', 'fields' => [
-            'emails' => ['adi.oversight@example.test', 'pe.sup@example.test'], 'presentation_at' => '2026-11-05T09:00', 'location' => 'Teams',
+            'emails' => ['adi.oversight@example.test', 'pe.sup@example.test'],
+            'presentation_at' => '2026-11-05T09:00',
+            'location' => 'Teams',
         ]])->assertSessionHasNoErrors();
         Mail::assertSent(\App\Mail\TebAdiNotification::class, 2);
         $this->assertSame(TebProject::STATUS_ADI_REVIEW, $p->fresh()->status);
@@ -389,18 +438,29 @@ class TebFlowTest extends TestCase
         // 4MCN generated by originator.
         // The form prefills Current Status / Change Description from the charter's Problem Statement / Project Scope.
         $this->as('1001')->get(route('teb.fourmcn.create', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/FourMcn/Form')
+            ->assertInertia(fn(Page $page) => $page->component('Teb/FourMcn/Form')
                 ->where('p.charter.problem_statement', 'Capacity gap')->where('p.charter.project_scope', 'Line 3'));
         $this->as('1001')->post(route('teb.fourmcn.store', $p), [
-            'title' => 'New fixture', 'change_items' => ['machine', 'method'], 'classification' => 'minor',
-            'types_of_change' => ['temporary'], 'date_written' => now()->toDateString(),
-            'effectivity_date' => now()->addWeek()->toDateString(), 'expiration_date' => now()->addMonth()->toDateString(), 'extension_no' => 1,
-            'before_change' => 'a', 'after_change' => 'b', 'reason' => 'c', 'attachments_note' => 'FMEA',
+            'title' => 'New fixture',
+            'change_items' => ['machine', 'method'],
+            'classification' => 'minor',
+            'types_of_change' => ['temporary'],
+            'date_written' => now()->toDateString(),
+            'effectivity_date' => now()->addWeek()->toDateString(),
+            'expiration_date' => now()->addMonth()->toDateString(),
+            'extension_no' => 1,
+            'before_change' => 'a',
+            'after_change' => 'b',
+            'reason' => 'c',
+            'attachments_note' => 'FMEA',
         ])->assertSessionHasNoErrors()->assertRedirect(route('teb.fourmcn.show', $p));
-        $this->assertSame('4MCN-'.now()->format('Y').'-00001', $p->fresh()->fourMcn->mcn_no);
+        $this->assertSame('4MCN-' . now()->format('Y') . '-00001', $p->fresh()->fourMcn->mcn_no);
 
         $this->as('1002')->post(route('teb.projects.stage', $p), [
-            'action' => 'secured', 'decision' => 1, 'stage_file' => UploadedFile::fake()->create('customer-ok.pdf', 5), 'stage_file_type' => 'customer_approval',
+            'action' => 'secured',
+            'decision' => 1,
+            'stage_file' => UploadedFile::fake()->create('customer-ok.pdf', 5),
+            'stage_file_type' => 'customer_approval',
             'fields' => ['conditions' => 'Monitor yield for 3 lots'],
         ])->assertSessionHasNoErrors();
         $this->assertSame('Monitor yield for 3 lots', $p->fresh()->gate_records['customer']['conditions']);
@@ -442,24 +502,28 @@ class TebFlowTest extends TestCase
         $this->as('1002')->post(route('teb.projects.stage', $p), ['action' => 'effectiveness', 'decision' => 1, 'checks' => ['objective_achieved' => 1]])->assertSessionHasErrors('checks');
         $this->as('1002')->post(route('teb.projects.stage', $p), ['action' => 'effectiveness', 'decision' => 1, 'checks' => $piev, 'fields' => ['verified_by' => 'QA: R. Santos']])->assertSessionHasErrors('stage_file');
         $this->as('1002')->post(route('teb.projects.stage', $p), [
-            'action' => 'effectiveness', 'decision' => 1, 'checks' => $piev, 'fields' => ['verified_by' => 'QA: R. Santos'],
-            'stage_file' => UploadedFile::fake()->create('closure.pdf', 5), 'stage_file_type' => 'closure_report',
+            'action' => 'effectiveness',
+            'decision' => 1,
+            'checks' => $piev,
+            'fields' => ['verified_by' => 'QA: R. Santos'],
+            'stage_file' => UploadedFile::fake()->create('closure.pdf', 5),
+            'stage_file_type' => 'closure_report',
         ])->assertSessionHasNoErrors();
         $p->refresh();
         $this->assertSame(TebProject::STATUS_CLOSED, $p->status);
         $this->assertNotNull($p->closed_at);
         $this->as('1001')->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('p.step', 11)->where('p.status_label', 'Project Closed')
+            ->assertInertia(fn(Page $page) => $page->where('p.step', 11)->where('p.status_label', 'Project Closed')
                 ->where('p.gates.0.title', 'Qualification Package')->has('p.gates', 6)->etc());
         $this->as('1001')->get(route('teb.fourmcn.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/FourMcn/Print')->where('p.four_mcn.mcn_no', '4MCN-'.now()->format('Y').'-00001')
+            ->assertInertia(fn(Page $page) => $page->component('Teb/FourMcn/Print')->where('p.four_mcn.mcn_no', '4MCN-' . now()->format('Y') . '-00001')
                 ->where('p.four_mcn.justification', 'c')->where('p.four_mcn.extension_no', 1)->where('p.four_mcn.types_of_change', ['temporary'])->etc());
 
         // Forms, dashboard and export.
         $this->as('1001')->get(route('teb.projects.form', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Projects/Print')->where('p.status', 'closed')->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Projects/Print')->where('p.status', 'closed')->etc());
         $this->as('1001')->get(route('dashboard'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('total', 1)->where('byStatus.closed', 1)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('total', 1)->where('byStatus.closed', 1)->etc());
         $csv = $this->as('1001')->get(route('teb.projects.export', ['category' => 'T']));
         $csv->assertOk();
         $this->assertStringContainsString($p->teb_no, $csv->streamedContent());
@@ -476,7 +540,9 @@ class TebFlowTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{4}-\d{5}$/', $tebNo);
         $this->authorizeTrial($p);
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'teb_report' => UploadedFile::fake()->create('r.pdf', 5), 'requires_4mcn' => 0, 'conclusion' => 'Passed',
+            'teb_report' => UploadedFile::fake()->create('r.pdf', 5),
+            'requires_4mcn' => 0,
+            'conclusion' => 'Passed',
         ]);
         $sup = $this->results($p)->where('department_group', 'Quality Assurance')->first();
         $this->as($this->signer($sup))->post(route('teb.approvals.act', $sup), ['decision' => 'rejected'])->assertSessionHasErrors('remarks');
@@ -503,7 +569,9 @@ class TebFlowTest extends TestCase
         $this->as('1002')->post(route('teb.review.assign', $p));
         $this->authorizeTrial($p);
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'teb_report' => UploadedFile::fake()->create('r.pdf', 5), 'requires_4mcn' => 0, 'conclusion' => 'Passed',
+            'teb_report' => UploadedFile::fake()->create('r.pdf', 5),
+            'requires_4mcn' => 0,
+            'conclusion' => 'Passed',
         ])->assertSessionHasNoErrors();
         $this->assertSame(6, $this->results($p)->count()); // Minor change: no Operation Director or President.
         $this->assertSame(0, $p->approvals()->whereIn('level', ['operation_director', 'president'])->count());
@@ -524,22 +592,33 @@ class TebFlowTest extends TestCase
     // the Approve button, or is told whose signatures they wait for (Operation Director / President on Major changes).
     public function test_tspi_approval_for_other_department_shows_approve_or_who_signs_first(): void
     {
-        DB::connection('authify')->table('authify_sessions')->insert(['token' => 'tok-3001', 'portal_id' => config('services.authify.portal_id'),
-            'emp_id' => '3001', 'emp_name' => 'Wally Lead', 'emp_dept' => 'Warehouse', 'generated_at' => now()]);
+        DB::connection('authify')->table('authify_sessions')->insert([
+            'token' => 'tok-3001',
+            'portal_id' => config('services.authify.portal_id'),
+            'emp_id' => '3001',
+            'emp_name' => 'Wally Lead',
+            'emp_dept' => 'Warehouse',
+            'generated_at' => now()
+        ]);
         $p = $this->register();
         $p->update(['owner_department' => 'Warehouse']); // Others = owner's department
         $this->heldReview($p);
         $this->as('1002')->post(route('teb.review.status', $p), ['status' => 'reviewed']);
         $this->as('1002')->post(route('teb.review.assign', $p));
         $this->as('1001')->post(route('teb.projects.plan', $p), [
-            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 10), 'acceptance_criteria' => 'Cpk >= 1.33', 'uses_customer_product' => 0])->assertSessionHasNoErrors();
+            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 10),
+            'acceptance_criteria' => 'Cpk >= 1.33',
+            'uses_customer_product' => 0
+        ])->assertSessionHasNoErrors();
         foreach ($p->approvals()->where('round', 'plan')->orderBy('level_order')->get() as $a) {
             $signer = str_starts_with($a->department_group, 'Others') ? '3001' : $this->signer($a); // Warehouse has a Section Head only
             $this->as($signer)->post(route('teb.approvals.act', $a), ['decision' => 'approved'])->assertSessionHasNoErrors();
         }
         $this->assertSame(TebProject::STATUS_TRIAL_AUTHORIZED, $p->fresh()->status);
         $this->as('1001')->post(route('teb.projects.complete.store', $p), [
-            'teb_report' => UploadedFile::fake()->create('r.pdf', 5), 'requires_4mcn' => 0, 'conclusion' => 'Passed',
+            'teb_report' => UploadedFile::fake()->create('r.pdf', 5),
+            'requires_4mcn' => 0,
+            'conclusion' => 'Passed',
             'customer_trial' => UploadedFile::fake()->create('trial.pdf', 5),
         ])->assertSessionHasNoErrors();
         $this->assertSame(TebProject::STATUS_FOR_APPROVAL, $p->fresh()->status);
@@ -548,27 +627,27 @@ class TebFlowTest extends TestCase
         $others = $this->results($p)->where('department_group', 'Others: Warehouse')->first();
         $this->assertSame(['3001'], \App\Services\Teb\ApproverCandidates::eligible((int) $others->department_id, 'section_head'));
         $this->as('3001')->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->has('projects.data', 1)
+            ->assertInertia(fn(Page $page) => $page->has('projects.data', 1)
                 ->where('projects.data.0.my_approval.can_sign', true)->where('projects.data.0.my_approval.label', 'Others: Warehouse')->etc());
         $this->as('3001')->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('myTurn.id', $others->id)->where('myWait', null)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('myTurn.id', $others->id)->where('myWait', null)->etc());
 
         // The Operation Director (also in Warehouse) sees it listed, but signs after every department: no Approve
         // button, and the page names the boxes still open.
         $this->as('3002')->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->has('projects.data', 1)
+            ->assertInertia(fn(Page $page) => $page->has('projects.data', 1)
                 ->where('projects.data.0.my_approval.can_sign', false)
                 ->where('projects.data.0.my_approval.label', 'Operation Director')
-                ->where('projects.data.0.my_approval.waiting_on', ['Manufacturing', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'QMS', 'Others: Warehouse'])->etc());
+                ->where('projects.data.0.my_approval.waiting_on', ['Manufacturing', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'Quality Management System', 'Others: Warehouse'])->etc());
         $this->as('3002')->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('myTurn', null)->where('myWait.label', 'Operation Director')->has('myWait.on', 6)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('myTurn', null)->where('myWait.label', 'Operation Director')->has('myWait.on', 6)->etc());
 
         // TRB Admin sees every TRB in approval, but only gets Approve where they can sign (Process Engineering).
         $this->as('1002')->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('projects.data.0.my_approval', null)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('projects.data.0.my_approval', null)->etc());
         $pe = $this->results($p)->where('department_group', 'Process Engineering')->first();
         $this->as($this->signer($pe))->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('projects.data.0.my_approval.can_sign', true)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('projects.data.0.my_approval.can_sign', true)->etc());
 
         // Every department signs; then the Operation Director can approve, and the President waits only on them.
         foreach ($this->results($p)->where('level', TebApproval::ANY_LEVEL)->get() as $a) {
@@ -576,14 +655,14 @@ class TebFlowTest extends TestCase
         }
         $this->assertSame(TebApproval::APPROVED, $others->fresh()->status);
         $this->as('3002')->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('myWait', null)->where('myTurn.label', 'Operation Director')->etc());
+            ->assertInertia(fn(Page $page) => $page->where('myWait', null)->where('myTurn.label', 'Operation Director')->etc());
         $this->as('3003')->get(route('teb.projects.show', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('myTurn', null)->where('myWait.on', ['Operation Director'])->etc());
+            ->assertInertia(fn(Page $page) => $page->where('myTurn', null)->where('myWait.on', ['Operation Director'])->etc());
 
         $od = $this->results($p)->where('level', 'operation_director')->first();
         $this->as('3002')->post(route('teb.approvals.act', $od), ['decision' => 'approved'])->assertSessionHasNoErrors();
         $this->as('3003')->get(route('teb.approvals.index'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->where('projects.data.0.my_approval.can_sign', true)->etc());
+            ->assertInertia(fn(Page $page) => $page->where('projects.data.0.my_approval.can_sign', true)->etc());
         $pres = $this->results($p)->where('level', 'president')->first();
         $this->as('3003')->post(route('teb.approvals.act', $pres), ['decision' => 'approved'])->assertSessionHasNoErrors();
         $this->assertSame(TebProject::STATUS_APPROVED, $p->fresh()->status);
@@ -600,7 +679,10 @@ class TebFlowTest extends TestCase
         $this->as('1002')->post(route('teb.review.status', $p), ['status' => 'reviewed']);
         $this->as('1002')->post(route('teb.review.assign', $p));
         $this->as('1001')->post(route('teb.projects.plan', $p), [
-            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 5), 'acceptance_criteria' => 'Cpk >= 1.33', 'uses_customer_product' => 0])->assertSessionHasErrors(['approval' => 'No Supervisor, Section Head or Manager in the masterlist for: Facilities. Check their department and job level in the masterlist.']);
+            'trial_plan' => UploadedFile::fake()->create('plan.pdf', 5),
+            'acceptance_criteria' => 'Cpk >= 1.33',
+            'uses_customer_product' => 0
+        ])->assertSessionHasErrors(['approval' => 'No Supervisor, Section Head or Manager in the masterlist for: Facilities. Check their department and job level in the masterlist.']);
         $this->assertSame(TebProject::STATUS_REVIEWED, $p->fresh()->status);
         $this->assertSame(0, $p->approvals()->count());
     }
@@ -640,13 +722,21 @@ class TebFlowTest extends TestCase
 
         // Saving the edit resubmits it for review.
         $this->as('1001')->put(route('teb.projects.update', $p), [
-            'title' => 'Revised', 'category' => 'machine_qualification', 'bmp' => ['T' => 'Equipment & System Enhancement'], 'types_of_change' => ['permanent'],
-            'affected_areas' => [$this->fx['dept']('Production')], 'project_description' => 'with layout', 'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
+            'title' => 'Revised',
+            'category' => 'machine_qualification',
+            'bmp' => ['T' => 'Equipment & System Enhancement'],
+            'types_of_change' => ['permanent'],
+            'affected_areas' => [$this->fx['dept']('Production')],
+            'project_description' => 'with layout',
+            'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
         ])->assertSessionHasNoErrors();
         $this->assertSame(TebProject::STATUS_SUBMITTED, $p->fresh()->status);
 
-        $this->as('1002')->post(route('teb.review.status', $p), ['status' => 'dropped', 'remarks' => 'Not cost effective',
-            'assessment' => ['investment' => 'PHP 2.4M', 'risks' => '']])->assertSessionHasNoErrors();
+        $this->as('1002')->post(route('teb.review.status', $p), [
+            'status' => 'dropped',
+            'remarks' => 'Not cost effective',
+            'assessment' => ['investment' => 'PHP 2.4M', 'risks' => '']
+        ])->assertSessionHasNoErrors();
         $p->refresh();
         $this->assertSame('PHP 2.4M', $p->gate_records['feasibility']['investment']);
         $this->assertArrayNotHasKey('risks', $p->gate_records['feasibility']);
@@ -676,12 +766,12 @@ class TebFlowTest extends TestCase
         $this->authorizeTrial($p);
         $this->as('1001')->post(route('teb.projects.complete.store', $p), ['teb_report' => UploadedFile::fake()->create('r.pdf', 5), 'requires_4mcn' => 0, 'conclusion' => 'Passed']);
         // Routed before QMS was a signatory; Manufacturing already signed.
-        $this->results($p)->where('department_group', 'QMS')->delete();
+        $this->results($p)->where('department_group', 'Quality MAnagement System')->delete();
         $box = $this->results($p)->where('department_group', 'Manufacturing')->first();
         $this->as($this->signer($box))->post(route('teb.approvals.act', $box), ['decision' => 'approved']);
 
         $this->artisan('teb:reroute', ['teb_no' => $p->teb_no])->assertSuccessful();
-        $this->assertSame(1, $this->results($p)->where('department_group', 'QMS')->where('status', 'pending')->count());
+        $this->assertSame(1, $this->results($p)->where('department_group', 'Quality MAnagement System')->where('status', 'pending')->count());
         $this->assertSame(TebApproval::APPROVED, $box->fresh()->status);
         $this->assertSame(range(0, 4), $this->results($p)->orderBy('department_order')->pluck('department_order')->all());
     }
@@ -689,8 +779,12 @@ class TebFlowTest extends TestCase
     public function test_4mcn_is_generated_when_adi_approves(): void
     {
         $p = $this->register(['classification' => 'minor', 'fmea' => null]);
-        $p->update(['status' => TebProject::STATUS_ADI_REVIEW, 'teb_no' => '2026-00099', 'requires_4mcn' => true,
-            'gate_records' => ['results' => ['conclusion' => 'Meets criteria']]]);
+        $p->update([
+            'status' => TebProject::STATUS_ADI_REVIEW,
+            'teb_no' => '2026-00099',
+            'requires_4mcn' => true,
+            'gate_records' => ['results' => ['conclusion' => 'Meets criteria']]
+        ]);
         $this->as('1002')->post(route('teb.projects.stage', $p), ['action' => 'secured', 'decision' => 1])->assertSessionHasNoErrors();
         $p->refresh();
         $this->assertSame(TebProject::STATUS_DOC_RELEASE, $p->status);
@@ -722,10 +816,15 @@ class TebFlowTest extends TestCase
         $p = $this->register();
         $this->as('1002')->get(route('teb.projects.edit', $p))->assertForbidden();
         $this->as('1001')->get(route('teb.projects.edit', $p))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Projects/Form')->where('p.title', $p->title)->etc());
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Projects/Form')->where('p.title', $p->title)->etc());
         $this->as('1001')->put(route('teb.projects.update', $p), [
-            'title' => 'Renamed', 'category' => 'machine_qualification', 'bmp' => ['T' => 'Machine & Process Qualification'], 'types_of_change' => ['temporary'],
-            'affected_areas' => [$this->fx['dept']('Production')], 'project_description' => 'z', 'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
+            'title' => 'Renamed',
+            'category' => 'machine_qualification',
+            'bmp' => ['T' => 'Machine & Process Qualification'],
+            'types_of_change' => ['temporary'],
+            'affected_areas' => [$this->fx['dept']('Production')],
+            'project_description' => 'z',
+            'charter' => ['problem_statement' => 'Capacity gap', 'goal_statement' => '+20% UPH by Q1', 'project_scope' => 'Line 3'],
         ])->assertSessionHasNoErrors()->assertRedirect(route('teb.projects.show', $p));
         $this->assertSame('Renamed', $p->fresh()->title);
         $this->as('1002')->post(route('teb.review.status', $p), ['status' => 'ongoing']);
@@ -750,7 +849,10 @@ class TebFlowTest extends TestCase
     protected function freshExecutives(string $key): array
     {
         $ids = (new class extends \App\Services\Teb\ApproverCandidates {
-            public static function fresh(): array { return static::loadExecutives(); }
+            public static function fresh(): array
+            {
+                return static::loadExecutives();
+            }
         })::fresh()[$key];
         $ids = array_column($ids, 'id');
         sort($ids);
@@ -761,7 +863,7 @@ class TebFlowTest extends TestCase
     public function test_settings_and_register_form(): void
     {
         $this->as('1002')->get(route('teb.settings'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Settings/Index')->has('departments', 7)
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Settings/Index')->has('departments', 7)
                 // Equipment Engineering (first A-Z): one person per level, picked by masterlist job level.
                 ->where('departments.0.name', 'Equipment Engineering')
                 ->has('departments.0.candidates.supervisor', 1)->where('departments.0.candidates.supervisor.0.job_level', 'Supervisor')
@@ -780,7 +882,7 @@ class TebFlowTest extends TestCase
                 ->etc());
         $this->as('2001')->get(route('teb.settings'))->assertRedirect(route('dashboard'));
         $this->as('1001')->get(route('teb.projects.create'))->assertOk()
-            ->assertInertia(fn (Page $page) => $page->component('Teb/Projects/Form')->where('customers.0.name', 'Acme Semicon')
+            ->assertInertia(fn(Page $page) => $page->component('Teb/Projects/Form')->where('customers.0.name', 'Acme Semicon')
                 ->where('ownerDept', 'Process Engineering')->has('departments', 7)->etc());
     }
 }

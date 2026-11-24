@@ -101,7 +101,7 @@ class LegacySchema
     public static function seed(): array
     {
         $ml = DB::connection('masterlist');
-        $depts = ['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'QMS', 'Facilities', 'Warehouse'];
+        $depts = ['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'Quality Management System', 'Facilities', 'Warehouse'];
         foreach ($depts as $d) {
             $ml->table('department')->insert(['dep_name' => $d]);
         }
@@ -115,7 +115,7 @@ class LegacySchema
         $levels = ['supervisor' => 'Sup', 'section_head' => 'Head', 'manager' => 'Mgr'];
         $id = 2000;
         $matrix = [];
-        foreach (['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'QMS', 'Facilities'] as $d) {
+        foreach (['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'Quality Management System', 'Facilities'] as $d) {
             foreach ($levels as $lvl => $tag) {
                 $id++;
                 $people[] = [$id, $tag, str_replace(' ', '', $d), strtolower($tag) . $id, $d];

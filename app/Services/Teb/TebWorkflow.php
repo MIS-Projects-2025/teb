@@ -116,7 +116,7 @@ class TebWorkflow
                 $project->approvals()->where('round', TebApproval::ROUND_PLAN)->delete();
             }
 
-            return $this->changeStatus($project, TebProject::STATUS_PLAN_FOR_APPROVAL, $by, trim('Trial plan submitted for approval. '.$remarks));
+            return $this->changeStatus($project, TebProject::STATUS_PLAN_FOR_APPROVAL, $by, trim('Trial plan submitted for approval. ' . $remarks));
         });
     }
 
@@ -149,7 +149,7 @@ class TebWorkflow
             throw ValidationException::withMessages(['remarks' => 'Remarks are required: say what needs to be addressed.']);
         }
 
-        $note = fn (string $text) => trim($text.($remarks ? ". {$remarks}" : ''));
+        $note = fn(string $text) => trim($text . ($remarks ? ". {$remarks}" : ''));
 
         switch ($action) {
             case 'plan':
@@ -166,7 +166,7 @@ class TebWorkflow
                     : $this->changeStatus($project, TebProject::STATUS_DOC_RELEASE, $by, $note('No customer approval required'));
 
             case 'notify_adi':
-                $emails = collect($fields['emails'] ?? [])->map(fn ($e) => mb_strtolower(trim($e)))->filter()->unique()->values();
+                $emails = collect($fields['emails'] ?? [])->map(fn($e) => mb_strtolower(trim($e)))->filter()->unique()->values();
                 if ($emails->isEmpty()) {
                     throw ValidationException::withMessages(['emails' => 'Enter at least one ADI Oversight Team email address.']);
                 }
@@ -183,12 +183,17 @@ class TebWorkflow
                 }
                 TebGates::record($project, 'customer', [
                     'adi_notified'     => $emails->implode(', '),
-                    'adi_presentation' => trim(($fields['presentation_at'] ?? '').' '.($fields['location'] ?? '')),
+                    'adi_presentation' => trim(($fields['presentation_at'] ?? '') . ' ' . ($fields['location'] ?? '')),
                 ], $by);
-                $project->statusLogs()->create(['from_status' => $project->status, 'to_status' => $project->status, 'employid' => $by->id, 'emp_name' => $by->name,
-                    'remarks' => "ADI Oversight Team notified ({$sent} of {$emails->count()} sent)".($error ? '. Mail error: '.str($error)->limit(200) : '')]);
+                $project->statusLogs()->create([
+                    'from_status' => $project->status,
+                    'to_status' => $project->status,
+                    'employid' => $by->id,
+                    'emp_name' => $by->name,
+                    'remarks' => "ADI Oversight Team notified ({$sent} of {$emails->count()} sent)" . ($error ? '. Mail error: ' . str($error)->limit(200) : '')
+                ]);
                 if ($error) {
-                    throw ValidationException::withMessages(['emails' => "{$sent} of {$emails->count()} notice(s) sent. Mail error: ".str($error)->limit(300)]);
+                    throw ValidationException::withMessages(['emails' => "{$sent} of {$emails->count()} notice(s) sent. Mail error: " . str($error)->limit(300)]);
                 }
 
                 return $project;
@@ -226,7 +231,7 @@ class TebWorkflow
                 $missing = array_values(array_diff_key(TebGates::READINESS_CHECKS, array_filter($checks)));
 
                 return $missing
-                    ? $this->changeStatus($project, TebProject::STATUS_READINESS_GAPS, $by, $note('Readiness gaps: '.implode(', ', $missing)))
+                    ? $this->changeStatus($project, TebProject::STATUS_READINESS_GAPS, $by, $note('Readiness gaps: ' . implode(', ', $missing)))
                     : $this->changeStatus($project, TebProject::STATUS_IMPLEMENTATION, $by, $note('Gate 2 passed: documents released, training, equipment, materials and approval conditions ready'));
 
             case 'gaps_closed':
@@ -321,29 +326,43 @@ class TebWorkflow
         $executives = in_array($project->classification, config('teb.executive_approval_classifications', []), true)
             ? config('teb.executive_approvals', [])
             : [];
-        $noExecutive = array_values(array_map(fn ($key) => $executives[$key]['label'],
-            array_filter(array_keys($executives), fn ($key) => ! ApproverCandidates::eligibleExecutive($key))));
+        $noExecutive = array_values(array_map(
+            fn($key) => $executives[$key]['label'],
+            array_filter(array_keys($executives), fn($key) => ! ApproverCandidates::eligibleExecutive($key))
+        ));
 
         if ($missing || $noExecutive) {
             throw ValidationException::withMessages(['approval' => trim(
-                ($missing ? 'No Supervisor, Section Head or Manager in the masterlist for: '.implode(', ', $missing).'. ' : '')
-                .($noExecutive ? 'No '.implode(' or ', $noExecutive).' found in the masterlist (Major changes need them). ' : '')
-                .'Check their department and job level in the masterlist.'
+                ($missing ? 'No Supervisor, Section Head or Manager in the masterlist for: ' . implode(', ', $missing) . '. ' : '')
+                    . ($noExecutive ? 'No ' . implode(' or ', $noExecutive) . ' found in the masterlist (Major changes need them). ' : '')
+                    . 'Check their department and job level in the masterlist.'
             )]);
         }
 
         $rows = [];
         foreach ($departments as $order => $dept) {
-            $rows[] = ['department_group' => $dept['group'], 'department_id' => $dept['id'], 'dep_name' => $dept['name'],
-                'department_order' => $order, 'level' => TebApproval::ANY_LEVEL, 'level_order' => 1];
+            $rows[] = [
+                'department_group' => $dept['group'],
+                'department_id' => $dept['id'],
+                'dep_name' => $dept['name'],
+                'department_order' => $order,
+                'level' => TebApproval::ANY_LEVEL,
+                'level_order' => 1
+            ];
         }
         // Major changes: Operation Director, then President, after all departments.
         foreach (array_keys($executives) as $i => $key) {
-            $rows[] = ['department_group' => $executives[$key]['label'], 'department_id' => null, 'dep_name' => $executives[$key]['label'],
-                'department_order' => count($departments) + $i, 'level' => $key, 'level_order' => 2 + $i];
+            $rows[] = [
+                'department_group' => $executives[$key]['label'],
+                'department_id' => null,
+                'dep_name' => $executives[$key]['label'],
+                'department_order' => count($departments) + $i,
+                'level' => $key,
+                'level_order' => 2 + $i
+            ];
         }
 
-        $existing = $project->approvals()->where('round', $round)->get()->keyBy(fn ($a) => "{$a->department_group}|{$a->level}");
+        $existing = $project->approvals()->where('round', $round)->get()->keyBy(fn($a) => "{$a->department_group}|{$a->level}");
         if (! $keepSigned) {
             $project->approvals()->where('round', $round)->delete();
             $existing = collect();
@@ -360,7 +379,7 @@ class TebWorkflow
         }
 
         // Boxes no longer in the rules are dropped unless someone already signed them.
-        $existing->reject(fn ($a, $key) => in_array($key, $keys, true) || $a->status !== TebApproval::PENDING)->each->delete();
+        $existing->reject(fn($a, $key) => in_array($key, $keys, true) || $a->status !== TebApproval::PENDING)->each->delete();
     }
 
     // Fixed departments from config, then "Others": the project owner's department when it is not one of them.
@@ -378,7 +397,7 @@ class TebWorkflow
         $isFixed = in_array(mb_strtolower($owner), array_map('mb_strtolower', $fixed), true);
         if ($owner !== '' && ! $isFixed) {
             $dept = Department::whereRaw('LOWER(dep_name) = ?', [mb_strtolower($owner)])->first(['id', 'dep_name']);
-            $rows[] = ['group' => 'Others: '.($dept->dep_name ?? $owner), 'id' => $dept?->id, 'name' => $dept->dep_name ?? $owner];
+            $rows[] = ['group' => 'Others: ' . ($dept->dep_name ?? $owner), 'id' => $dept?->id, 'name' => $dept->dep_name ?? $owner];
         }
 
         return $rows;
@@ -398,7 +417,7 @@ class TebWorkflow
 
         if (! $approval->isTurn()) {
             throw ValidationException::withMessages(['approval' => $approval->isExecutive()
-                ? 'Every department, and the Operation Director before the President, must sign first.'
+                ? 'Every department must sign before the ' . $approval->level_label . '.'
                 : 'The previous level has not signed yet.']);
         }
 
@@ -451,7 +470,7 @@ class TebWorkflow
             'before_change'    => $project->fourMcnBeforeChange(),
             'after_change'     => $project->fourMcnAfterChange(),
             'reason'           => TebGates::value($project, 'results', 'conclusion') ?: ($project->charter['business_case'] ?? $project->project_description),
-            'attachments_note' => 'TRB '.$project->teb_no.' report and qualification results',
+            'attachments_note' => 'TRB ' . $project->teb_no . ' report and qualification results',
             'prepared_by'      => $project->owner_employid,
             'prepared_name'    => $project->owner_name,
         ]);

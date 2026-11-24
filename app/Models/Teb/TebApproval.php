@@ -58,13 +58,14 @@ class TebApproval extends TebModel
     // Operation Director / President rows (Major changes): company-wide, not tied to a department.
     public function isExecutive(): bool
     {
-        return array_key_exists($this->level, config('teb.executive_approvals', []));
+        return array_key_exists($this->level, config('teb.executive_approvals', []))
+            || array_key_exists($this->level, config('teb.executive_legacy_labels', []));
     }
 
     public function getLevelLabelAttribute(): string
     {
         if ($this->isExecutive()) {
-            return config("teb.executive_approvals.{$this->level}.label");
+            return config("teb.executive_approvals.{$this->level}.label") ?? config("teb.executive_legacy_labels.{$this->level}");
         }
 
         return $this->level === self::ANY_LEVEL
@@ -98,8 +99,10 @@ class TebApproval extends TebModel
     public function scopeSignableBy($query, \App\Services\Teb\TebActor $user)
     {
         $pairs = \App\Services\Teb\ApproverCandidates::signableBy($user->id);
-        $roles = array_values(array_filter(array_keys(config('teb.executive_approvals', [])),
-            fn ($key) => in_array((string) $user->id, \App\Services\Teb\ApproverCandidates::eligibleExecutive($key), true)));
+        $roles = array_values(array_filter(
+            array_keys(config('teb.executive_approvals', [])),
+            fn($key) => in_array((string) $user->id, \App\Services\Teb\ApproverCandidates::eligibleExecutive($key), true)
+        ));
 
         return $query->where('status', self::PENDING)->where(function ($q) use ($pairs, $roles) {
             $q->whereRaw('1 = 0');
@@ -107,7 +110,7 @@ class TebApproval extends TebModel
                 $q->orWhereIn('level', $roles);
             }
             foreach ($pairs as [$dept, $level]) {
-                $q->orWhere(fn ($w) => $w->where('department_id', $dept)->whereIn('level', [$level, self::ANY_LEVEL]));
+                $q->orWhere(fn($w) => $w->where('department_id', $dept)->whereIn('level', [$level, self::ANY_LEVEL]));
             }
         });
     }
@@ -128,7 +131,7 @@ class TebApproval extends TebModel
         }
 
         return $this->before()->orderBy('level_order')->orderBy('department_order')->get()
-            ->map(fn (self $a) => $a->sign_label)->unique()->values()->all();
+            ->map(fn(self $a) => $a->sign_label)->unique()->values()->all();
     }
 
     // Unsigned rows ahead of this one in the same round.
@@ -138,7 +141,7 @@ class TebApproval extends TebModel
             ->where('round', $this->round)
             ->where('level_order', '<', $this->level_order)
             ->where('status', '!=', self::APPROVED)
-            ->when(! $this->isExecutive(), fn ($q) => $q->where('department_group', $this->department_group));
+            ->when(! $this->isExecutive(), fn($q) => $q->where('department_group', $this->department_group));
     }
 
     // "Manufacturing", "Others: Facilities", "Operation Director"; older per-level rows add the level.

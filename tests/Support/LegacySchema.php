@@ -17,49 +17,95 @@ class LegacySchema
         }
         $m->create('employee_details', function (Blueprint $t) {
             $t->integer('employid')->primary();
-            $t->string('firstname'); $t->string('lastname'); $t->string('email')->nullable();
+            $t->string('firstname');
+            $t->string('lastname');
+            $t->string('email')->nullable();
             $t->integer('accstatus')->default(1);
         });
-        $m->create('department', function (Blueprint $t) { $t->id(); $t->string('dep_name'); });
-        $m->create('employee_department', function (Blueprint $t) { $t->id(); $t->integer('employid'); $t->integer('department_id'); });
-        $m->create('job_level', function (Blueprint $t) { $t->id(); $t->string('emp_job_level_name'); });
-        $m->create('employee_job_level', function (Blueprint $t) { $t->id(); $t->integer('employid'); $t->integer('job_level_id'); });
-        $m->create('position_level', function (Blueprint $t) { $t->id(); $t->string('position_level_name'); });
-        $m->create('employee_position_level', function (Blueprint $t) { $t->id(); $t->integer('employid'); $t->integer('position_level_id'); });
-        $m->create('admins', function (Blueprint $t) { $t->id(); $t->string('employid'); $t->string('role'); $t->timestamps(); });
+        $m->create('department', function (Blueprint $t) {
+            $t->id();
+            $t->string('dep_name');
+        });
+        $m->create('employee_department', function (Blueprint $t) {
+            $t->id();
+            $t->integer('employid');
+            $t->integer('department_id');
+        });
+        $m->create('job_level', function (Blueprint $t) {
+            $t->id();
+            $t->string('emp_job_level_name');
+        });
+        $m->create('employee_job_level', function (Blueprint $t) {
+            $t->id();
+            $t->integer('employid');
+            $t->integer('job_level_id');
+        });
+        $m->create('position_level', function (Blueprint $t) {
+            $t->id();
+            $t->string('position_level_name');
+        });
+        $m->create('employee_position_level', function (Blueprint $t) {
+            $t->id();
+            $t->integer('employid');
+            $t->integer('position_level_id');
+        });
+        $m->create('admins', function (Blueprint $t) {
+            $t->id();
+            $t->string('employid');
+            $t->string('role');
+            $t->timestamps();
+        });
 
         // Authify sessions (AuthMiddleware).
         $a = Schema::connection('authify');
         $a->dropIfExists('authify_sessions');
         $a->create('authify_sessions', function (Blueprint $t) {
-            $t->string('token')->primary(); $t->string('portal_id'); $t->string('emp_id'); $t->string('emp_name');
-            $t->string('emp_firstname')->nullable(); $t->string('emp_jobtitle')->nullable(); $t->string('emp_dept')->nullable();
-            $t->string('emp_prodline')->nullable(); $t->string('emp_station')->nullable(); $t->string('emp_position')->nullable();
-            $t->string('emp_job_level')->nullable(); $t->string('emp_position_level')->nullable(); $t->string('emp_from')->nullable();
-            $t->timestamp('generated_at')->nullable(); $t->timestamp('pending_logout_at')->nullable();
+            $t->string('token')->primary();
+            $t->string('portal_id');
+            $t->string('emp_id');
+            $t->string('emp_name');
+            $t->string('emp_firstname')->nullable();
+            $t->string('emp_jobtitle')->nullable();
+            $t->string('emp_dept')->nullable();
+            $t->string('emp_prodline')->nullable();
+            $t->string('emp_station')->nullable();
+            $t->string('emp_position')->nullable();
+            $t->string('emp_job_level')->nullable();
+            $t->string('emp_position_level')->nullable();
+            $t->string('emp_from')->nullable();
+            $t->timestamp('generated_at')->nullable();
+            $t->timestamp('pending_logout_at')->nullable();
         });
 
         $e = Schema::connection('email');
         $e->dropIfExists('email_list');
         $e->dropIfExists('email_accounts');
         $e->create('email_accounts', function (Blueprint $t) {
-            $t->id(); $t->string('name'); $t->string('email')->unique(); $t->string('department')->nullable();
-            $t->boolean('is_generic')->default(false); $t->boolean('is_active')->default(true); $t->timestamps();
+            $t->id();
+            $t->string('name');
+            $t->string('email')->unique();
+            $t->string('department')->nullable();
+            $t->boolean('is_generic')->default(false);
+            $t->boolean('is_active')->default(true);
+            $t->timestamps();
         });
 
         $q = Schema::connection('qdn');
         $q->dropIfExists('customer_list');
-        $q->create('customer_list', function (Blueprint $t) { $t->id(); $t->string('customer_name'); });
+        $q->create('customer_list', function (Blueprint $t) {
+            $t->id();
+            $t->string('customer_name');
+        });
     }
 
     public static function seed(): array
     {
         $ml = DB::connection('masterlist');
-        $depts = ['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'QMS', 'Facilities', 'Warehouse'];
+        $depts = ['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'Quality MAnagement System', 'Facilities', 'Warehouse'];
         foreach ($depts as $d) {
             $ml->table('department')->insert(['dep_name' => $d]);
         }
-        $deptId = fn ($n) => $ml->table('department')->where('dep_name', $n)->value('id');
+        $deptId = fn($n) => $ml->table('department')->where('dep_name', $n)->value('id');
 
         $people = [
             // employid, first, last, username, dept
@@ -69,10 +115,10 @@ class LegacySchema
         $levels = ['supervisor' => 'Sup', 'section_head' => 'Head', 'manager' => 'Mgr'];
         $id = 2000;
         $matrix = [];
-        foreach (['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'QMS', 'Facilities'] as $d) {
+        foreach (['Production', 'Process Engineering', 'Equipment Engineering', 'Quality Assurance', 'Quality MAnagement System', 'Facilities'] as $d) {
             foreach ($levels as $lvl => $tag) {
                 $id++;
-                $people[] = [$id, $tag, str_replace(' ', '', $d), strtolower($tag).$id, $d];
+                $people[] = [$id, $tag, str_replace(' ', '', $d), strtolower($tag) . $id, $d];
                 $matrix[] = [$deptId($d), $lvl, (string) $id];
             }
         }
@@ -81,12 +127,17 @@ class LegacySchema
         foreach (['Engineer', 'Supervisor', 'Section Head', 'Manager', 'Operation Director', 'President'] as $jl) {
             $ml->table('job_level')->insert(['emp_job_level_name' => $jl]);
         }
-        $jobLevelId = fn ($n) => $ml->table('job_level')->where('emp_job_level_name', $n)->value('id');
+        $jobLevelId = fn($n) => $ml->table('job_level')->where('emp_job_level_name', $n)->value('id');
 
         foreach ($people as [$eid, $f, $l, $u, $d]) {
             DB::connection('authify')->table('authify_sessions')->insert([
-                'token' => "tok-$eid", 'portal_id' => config('services.authify.portal_id'), 'emp_id' => (string) $eid,
-                'emp_name' => "$f $l", 'emp_firstname' => $f, 'emp_dept' => $d, 'generated_at' => now(),
+                'token' => "tok-$eid",
+                'portal_id' => config('services.authify.portal_id'),
+                'emp_id' => (string) $eid,
+                'emp_name' => "$f $l",
+                'emp_firstname' => $f,
+                'emp_dept' => $d,
+                'generated_at' => now(),
             ]);
             $ml->table('employee_details')->insert(['employid' => $eid, 'firstname' => $f, 'lastname' => $l, 'email' => "$u@example.test"]);
             $ml->table('employee_department')->insert(['employid' => $eid, 'department_id' => $deptId($d)]);
@@ -119,8 +170,13 @@ class LegacySchema
         $ml->table('employee_job_level')->insert(['employid' => 3004, 'job_level_id' => $jobLevelId('President')]);
         foreach ([[3002, 'Dora Director', 'Warehouse'], [3003, 'Pia President', 'Management']] as [$eid, $name, $d]) {
             DB::connection('authify')->table('authify_sessions')->insert([
-                'token' => "tok-$eid", 'portal_id' => config('services.authify.portal_id'), 'emp_id' => (string) $eid,
-                'emp_name' => $name, 'emp_firstname' => explode(' ', $name)[0], 'emp_dept' => $d, 'generated_at' => now(),
+                'token' => "tok-$eid",
+                'portal_id' => config('services.authify.portal_id'),
+                'emp_id' => (string) $eid,
+                'emp_name' => $name,
+                'emp_firstname' => explode(' ', $name)[0],
+                'emp_dept' => $d,
+                'generated_at' => now(),
             ]);
         }
 

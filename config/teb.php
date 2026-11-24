@@ -15,7 +15,7 @@ return [
 
     // Customer dropdown source: qdn_db.customer_list
     'customer' => [
-        'connection'  => env('TEB_CUSTOMER_CONNECTION', env('QDB_CONNECTION', 'qdn')),
+        'connection'  => env('TEB_CUSTOMER_CONNECTION', env('QDB_CONNECTION', 'qdn_db')),
         'table'       => env('TEB_CUSTOMER_TABLE', 'customer_list'),
         'key_column'  => env('TEB_CUSTOMER_KEY', 'id'),
         'name_column' => env('TEB_CUSTOMER_NAME', 'customer_name'),
@@ -60,7 +60,7 @@ return [
         'Process Engineering',
         'Equipment Engineering',
         'Quality Assurance',
-        env('TEB_QMS_DEPARTMENT', 'QMS'),
+        env('TEB_QMS_DEPARTMENT', 'Quality Management System'),
     ],
 
     // Name shown on the approval section when it differs from the masterlist dep_name.
@@ -99,18 +99,17 @@ return [
     'executive_position_level_ids' => array_map('intval', array_filter(explode(',', env('TEB_EXECUTIVE_POSITION_LEVEL_IDS', '35')))),
     'executive_approval_classifications' => ['major'],
     'executive_approvals' => [
-        'operation_director' => [
-            'label'         => 'Operation Director',
-            'job_level_ids' => array_map('intval', array_filter(explode(',', env('TEB_JOB_LEVEL_ID_OPERATION_DIRECTOR', '8')))),
-            'names'         => array_filter(array_map('trim', explode(',', env('TEB_JOB_LEVEL_OPERATION_DIRECTOR', 'Operation Director')))),
-        ],
-        'president' => [
-            'label'         => 'President',
-            'job_level_ids' => array_map('intval', array_filter(explode(',', env('TEB_JOB_LEVEL_ID_PRESIDENT', '6')))),
-            'names'         => array_filter(array_map('trim', explode(',', env('TEB_JOB_LEVEL_PRESIDENT', 'President')))),
+        'executive_committee' => [
+            'label'         => env('TEB_EXECUTIVE_LABEL', 'Executive Committee'),
+            'job_level_ids' => [],
+            'names'         => [],
         ],
     ],
-
+    // Boxes from before the Executive Committee (still shown on older TRBs). Pending ones are replaced by teb:reroute.
+    'executive_legacy_labels' => [
+        'operation_director' => 'Operation Director',
+        'president'          => 'President',
+    ],
     // Step 4 "Trial plan & required authorizations approved?": 'departments' routes the trial plan through the
     // approval section (same signatories as the results in step 6); 'admin' lets the TRB Admin approve it alone.
     'plan_approval' => env('TEB_PLAN_APPROVAL', 'departments'),
