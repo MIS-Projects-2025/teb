@@ -23,6 +23,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
 RUN echo '[www]\nuser = www-data\ngroup = www-data\nlisten = 0.0.0.0:9000\npm = dynamic\npm.max_children = 5\npm.start_servers = 2\npm.min_spare_servers = 1\npm.max_spare_servers = 3' > /usr/local/etc/php-fpm.d/www.conf
 
 COPY entrypoint.sh /entrypoint.sh
+RUN printf 'upload_max_filesize = 25M\npost_max_size = 30M\n' > /usr/local/etc/php/conf.d/uploads.ini
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
